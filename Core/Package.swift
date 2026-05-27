@@ -20,7 +20,7 @@ let package = Package(
         .target(name: "ReviewStore", dependencies: ["PRReviewModels"]),
         .target(name: "GitHubKit", dependencies: ["PRReviewModels", "CommandSupport"]),
         .target(name: "WorktreeKit", dependencies: ["CommandSupport"]),
-        .target(name: "DiffKit", dependencies: ["PRReviewModels"]),
+        .target(name: "DiffKit", dependencies: ["CommandSupport"]),
         .target(name: "ClaudeSessionKit", dependencies: ["PRReviewModels"]),
         .target(name: "AppCore", dependencies: ["PRReviewModels", "ReviewStore", "GitHubKit", "CommandSupport"]),
         .testTarget(name: "PRReviewModelsTests", dependencies: ["PRReviewModels"]),
@@ -29,5 +29,6 @@ let package = Package(
         .testTarget(name: "CommandSupportTests", dependencies: ["CommandSupport"]),
         .testTarget(name: "WorktreeKitTests", dependencies: ["WorktreeKit", "CommandSupport"]),
         .testTarget(name: "AppCoreTests", dependencies: ["AppCore", "PRReviewModels", "ReviewStore", "GitHubKit", "CommandSupport"]),
+        .testTarget(name: "DiffKitTests", dependencies: ["DiffKit"]),
     ]
 )
