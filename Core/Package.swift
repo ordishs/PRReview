@@ -12,6 +12,7 @@ let package = Package(
         .library(name: "WorktreeKit", targets: ["WorktreeKit"]),
         .library(name: "DiffKit", targets: ["DiffKit"]),
         .library(name: "ClaudeSessionKit", targets: ["ClaudeSessionKit"]),
+        .library(name: "AppCore", targets: ["AppCore"]),
     ],
     targets: [
         .target(name: "PRReviewModels"),
@@ -21,10 +22,12 @@ let package = Package(
         .target(name: "WorktreeKit", dependencies: ["CommandSupport"]),
         .target(name: "DiffKit", dependencies: ["PRReviewModels"]),
         .target(name: "ClaudeSessionKit", dependencies: ["PRReviewModels"]),
+        .target(name: "AppCore", dependencies: ["PRReviewModels", "ReviewStore", "GitHubKit", "CommandSupport"]),
         .testTarget(name: "PRReviewModelsTests", dependencies: ["PRReviewModels"]),
         .testTarget(name: "ReviewStoreTests", dependencies: ["ReviewStore", "PRReviewModels"]),
         .testTarget(name: "GitHubKitTests", dependencies: ["GitHubKit", "PRReviewModels", "CommandSupport"]),
         .testTarget(name: "CommandSupportTests", dependencies: ["CommandSupport"]),
         .testTarget(name: "WorktreeKitTests", dependencies: ["WorktreeKit", "CommandSupport"]),
+        .testTarget(name: "AppCoreTests", dependencies: ["AppCore", "PRReviewModels", "ReviewStore", "GitHubKit", "CommandSupport"]),
     ]
 )
