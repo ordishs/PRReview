@@ -16,6 +16,8 @@ targets:
     dependencies:
       - package: PRReviewCore
         product: PRReviewModels
+      - package: PRReviewCore
+        product: AppCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ordishs.PRReview
