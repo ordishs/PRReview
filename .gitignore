@@ -12,3 +12,9 @@ DerivedData/
 *.xcuserstate
 .swiftpm/
 Package.resolved
+
+# XcodeGen-generated project (regenerate with `xcodegen generate`)
+PRReview.xcodeproj/
+
+# xcodebuild derived data used by this repo's build commands
+DerivedData/

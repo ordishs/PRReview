@@ -1,0 +1,34 @@
+name: PRReview
+options:
+  bundleIdPrefix: com.ordishs
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+packages:
+  PRReviewCore:
+    path: Core
+targets:
+  PRReview:
+    type: application
+    platform: macOS
+    sources:
+      - App
+    dependencies:
+      - package: PRReviewCore
+        product: PRReviewModels
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ordishs.PRReview
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
+schemes:
+  PRReview:
+    build:
+      targets:
+        PRReview: all
+    run:
+      config: Debug
