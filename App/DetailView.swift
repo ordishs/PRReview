@@ -1,7 +1,9 @@
 import SwiftUI
 import PRReviewModels
+import AppCore
 
 struct DetailView: View {
+    let model: AppModel
     let review: Review
     @State private var pane: Pane = .github
 
@@ -27,7 +29,7 @@ struct DetailView: View {
             case .github:
                 WebPane(url: review.url)
             case .diff:
-                placeholder(title: "Diff viewer", subtitle: "Native diff lands with DiffKit.")
+                DiffPaneView(model: model, review: review)
             case .claude:
                 placeholder(title: "Claude review", subtitle: "The embedded terminal lands with the Claude pane.")
             }

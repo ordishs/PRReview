@@ -33,7 +33,7 @@ struct ContentView: View {
             }
         } detail: {
             if let review = model.selectedReview() {
-                DetailView(review: review)
+                DetailView(model: model, review: review)
             } else {
                 Text("Select a review")
                     .foregroundStyle(.secondary)

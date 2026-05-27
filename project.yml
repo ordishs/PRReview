@@ -18,6 +18,8 @@ targets:
         product: PRReviewModels
       - package: PRReviewCore
         product: AppCore
+      - package: PRReviewCore
+        product: DiffKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ordishs.PRReview
