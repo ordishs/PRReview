@@ -1,0 +1,3 @@
+public enum WorktreeError: Error, Equatable {
+    case gitFailed(arguments: [String], exitCode: Int32, message: String)
+}

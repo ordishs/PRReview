@@ -18,12 +18,13 @@ let package = Package(
         .target(name: "CommandSupport"),
         .target(name: "ReviewStore", dependencies: ["PRReviewModels"]),
         .target(name: "GitHubKit", dependencies: ["PRReviewModels", "CommandSupport"]),
-        .target(name: "WorktreeKit", dependencies: ["PRReviewModels"]),
+        .target(name: "WorktreeKit", dependencies: ["CommandSupport"]),
         .target(name: "DiffKit", dependencies: ["PRReviewModels"]),
         .target(name: "ClaudeSessionKit", dependencies: ["PRReviewModels"]),
         .testTarget(name: "PRReviewModelsTests", dependencies: ["PRReviewModels"]),
         .testTarget(name: "ReviewStoreTests", dependencies: ["ReviewStore", "PRReviewModels"]),
         .testTarget(name: "GitHubKitTests", dependencies: ["GitHubKit", "PRReviewModels", "CommandSupport"]),
         .testTarget(name: "CommandSupportTests", dependencies: ["CommandSupport"]),
+        .testTarget(name: "WorktreeKitTests", dependencies: ["WorktreeKit", "CommandSupport"]),
     ]
 )
