@@ -22,13 +22,13 @@ let package = Package(
         .target(name: "WorktreeKit", dependencies: ["CommandSupport"]),
         .target(name: "DiffKit", dependencies: ["CommandSupport"]),
         .target(name: "ClaudeSessionKit", dependencies: ["PRReviewModels"]),
-        .target(name: "AppCore", dependencies: ["PRReviewModels", "ReviewStore", "GitHubKit", "CommandSupport"]),
+        .target(name: "AppCore", dependencies: ["PRReviewModels", "ReviewStore", "GitHubKit", "CommandSupport", "WorktreeKit", "DiffKit"]),
         .testTarget(name: "PRReviewModelsTests", dependencies: ["PRReviewModels"]),
         .testTarget(name: "ReviewStoreTests", dependencies: ["ReviewStore", "PRReviewModels"]),
         .testTarget(name: "GitHubKitTests", dependencies: ["GitHubKit", "PRReviewModels", "CommandSupport"]),
         .testTarget(name: "CommandSupportTests", dependencies: ["CommandSupport"]),
         .testTarget(name: "WorktreeKitTests", dependencies: ["WorktreeKit", "CommandSupport"]),
-        .testTarget(name: "AppCoreTests", dependencies: ["AppCore", "PRReviewModels", "ReviewStore", "GitHubKit", "CommandSupport"]),
+        .testTarget(name: "AppCoreTests", dependencies: ["AppCore", "PRReviewModels", "ReviewStore", "GitHubKit", "CommandSupport", "DiffKit"]),
         .testTarget(name: "DiffKitTests", dependencies: ["DiffKit", "CommandSupport"]),
     ]
 )
