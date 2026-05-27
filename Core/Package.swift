@@ -21,5 +21,6 @@ let package = Package(
         .target(name: "ClaudeSessionKit", dependencies: ["PRReviewModels"]),
         .testTarget(name: "PRReviewModelsTests", dependencies: ["PRReviewModels"]),
         .testTarget(name: "ReviewStoreTests", dependencies: ["ReviewStore", "PRReviewModels"]),
+        .testTarget(name: "GitHubKitTests", dependencies: ["GitHubKit", "PRReviewModels"]),
     ]
 )
