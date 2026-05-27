@@ -1,5 +1,6 @@
 import Foundation
 import PRReviewModels
+import CommandSupport
 
 public struct GitHubClient: Sendable {
     private let runner: CommandRunner

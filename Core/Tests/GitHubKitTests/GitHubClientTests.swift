@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import PRReviewModels
+import CommandSupport
 @testable import GitHubKit
 
 private actor RecordingRunner: CommandRunner {

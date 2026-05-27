@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-import GitHubKit
+import CommandSupport
 
 @Test func processRunnerCapturesStdoutAndZeroExit() async throws {
     let runner = ProcessCommandRunner()
