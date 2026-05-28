@@ -137,6 +137,10 @@ public final class AppModel {
         do {
             let result = try await diffLoader.loadDiff(for: review, registeredClonePath: registeredClonePath(for: review))
             if review.worktreePath != result.worktreePath {
+                guard reviews.contains(where: { $0.id == review.id }) else {
+                    diffState = .loaded(result.files)
+                    return
+                }
                 var updated = review
                 updated.worktreePath = result.worktreePath
                 try await store.upsert(updated)
@@ -164,6 +168,11 @@ public final class AppModel {
             claudePaneState[review.id] = .worktreeFailed(String(describing: error))
             return
         }
+        if claudeSessions[review.id] != nil {
+            claudePaneState[review.id] = .sessionLive
+            return
+        }
+        guard reviews.contains(where: { $0.id == review.id }) else { return }
         if review.worktreePath != ready.worktreePath {
             var updated = review
             updated.worktreePath = ready.worktreePath
@@ -182,7 +191,7 @@ public final class AppModel {
         session.start()
     }
 
-    public func terminateClaudeSession(for id: String) {
+    func terminateClaudeSession(for id: String) {
         claudeSessions[id]?.terminate()
         claudeSessions.removeValue(forKey: id)
         claudePaneState.removeValue(forKey: id)
