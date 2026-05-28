@@ -5,12 +5,16 @@ import AppCore
 struct PRReviewApp: App {
     @State private var model: AppModel?
     @State private var startupError: String?
+    @State private var showingManage = false
 
     var body: some Scene {
         WindowGroup {
             Group {
                 if let model {
                     ContentView(model: model)
+                        .sheet(isPresented: $showingManage) {
+                            ManageLocalClonesView(model: model, isPresented: $showingManage)
+                        }
                 } else if let startupError {
                     Text(startupError)
                         .foregroundStyle(.red)
@@ -29,6 +33,15 @@ struct PRReviewApp: App {
                 } catch {
                     startupError = "Failed to start: \(error)"
                 }
+            }
+        }
+        .commands {
+            CommandMenu("Repositories") {
+                Button("Manage Local Clones…") {
+                    showingManage = true
+                }
+                .keyboardShortcut("L", modifiers: [.command, .shift])
+                .disabled(model == nil)
             }
         }
     }

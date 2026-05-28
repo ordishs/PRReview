@@ -9,8 +9,10 @@ struct DiffPaneView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            DiffToolbarView(model: model, review: review)
-            Divider()
+            if model.registeredClonePath(for: review) != nil {
+                DiffToolbarView(model: model, review: review)
+                Divider()
+            }
             Group {
                 switch model.diffState {
                 case .idle, .loading:

@@ -16,6 +16,18 @@ struct ContentView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .contextMenu {
+                    Button(role: .destructive) {
+                        Task { await model.removeReview(id: review.id) }
+                    } label: {
+                        Label("Remove from List", systemImage: "trash")
+                    }
+                }
+            }
+            .onDeleteCommand {
+                if let id = model.selection {
+                    Task { await model.removeReview(id: id) }
+                }
             }
             .navigationTitle("Reviews")
             .frame(minWidth: 260)
