@@ -61,5 +61,10 @@ struct ContentView: View {
         } message: {
             Text(model.errorMessage ?? "")
         }
+        .onChange(of: model.selection) { _, newSelection in
+            guard let id = newSelection,
+                  let review = model.reviews.first(where: { $0.id == id }) else { return }
+            model.prefetch(for: review)
+        }
     }
 }

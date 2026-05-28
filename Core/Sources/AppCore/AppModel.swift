@@ -62,6 +62,7 @@ public final class AppModel {
             reviews = await store.allReviews()
             selection = review.id
             errorMessage = nil
+            prefetch(for: review)
         } catch {
             errorMessage = String(describing: error)
         }
@@ -193,6 +194,11 @@ public final class AppModel {
         for session in claudeSessions.values { session.terminate() }
         claudeSessions.removeAll()
         claudePaneState.removeAll()
+    }
+
+    public func prefetch(for review: Review) {
+        Task { await ensureClaudeSession(for: review) }
+        Task { await loadDiff(for: review) }
     }
 
     public func selectedReview() -> Review? {
