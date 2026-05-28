@@ -17,6 +17,7 @@ public struct Review: Codable, Sendable, Identifiable, Equatable {
     public var claudeFlags: [String]?
     public var addedAt: Date
     public var lastOpenedAt: Date?
+    public var closingIssueNumber: Int?
 
     public init(
         owner: String,
@@ -33,7 +34,8 @@ public struct Review: Codable, Sendable, Identifiable, Equatable {
         notes: String? = nil,
         claudeFlags: [String]? = nil,
         addedAt: Date,
-        lastOpenedAt: Date? = nil
+        lastOpenedAt: Date? = nil,
+        closingIssueNumber: Int? = nil
     ) {
         self.id = Review.makeID(owner: owner, repo: repo, number: number)
         self.owner = owner
@@ -51,6 +53,7 @@ public struct Review: Codable, Sendable, Identifiable, Equatable {
         self.claudeFlags = claudeFlags
         self.addedAt = addedAt
         self.lastOpenedAt = lastOpenedAt
+        self.closingIssueNumber = closingIssueNumber
     }
 
     public static func makeID(owner: String, repo: String, number: Int) -> String {

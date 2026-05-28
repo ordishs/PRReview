@@ -12,7 +12,7 @@ public struct GitHubClient: Sendable {
     }
 
     public func fetchReview(for ref: PRRef, origin: ReviewOrigin = .added, now: Date = Date()) async throws -> Review {
-        let fields = "number,title,url,state,isDraft,author,headRefName,baseRefName"
+        let fields = "number,title,url,state,isDraft,author,headRefName,baseRefName,closingIssuesReferences"
         let result = try await runner.run(
             executable: ghPath,
             arguments: ["pr", "view", String(ref.number), "--repo", "\(ref.owner)/\(ref.repo)", "--json", fields]
@@ -29,6 +29,7 @@ public struct GitHubClient: Sendable {
         guard let url = URL(string: pullRequest.url) else {
             throw GitHubError.decodingFailed("invalid url: \(pullRequest.url)")
         }
+        let closingIssueNumber = pullRequest.closingIssuesReferences.first?.number
         return Review(
             owner: ref.owner,
             repo: ref.repo,
@@ -40,7 +41,8 @@ public struct GitHubClient: Sendable {
             baseBranch: pullRequest.baseRefName,
             origin: origin,
             prState: GitHubClient.mapState(state: pullRequest.state, isDraft: pullRequest.isDraft),
-            addedAt: now
+            addedAt: now,
+            closingIssueNumber: closingIssueNumber
         )
     }
 
@@ -63,6 +65,14 @@ struct GHPullRequest: Decodable {
         let login: String
     }
 
+    struct ClosingIssueRef: Decodable {
+        let number: Int
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case number, title, url, state, isDraft, author, headRefName, baseRefName, closingIssuesReferences
+    }
+
     let number: Int
     let title: String
     let url: String
@@ -71,4 +81,18 @@ struct GHPullRequest: Decodable {
     let author: Author
     let headRefName: String
     let baseRefName: String
+    let closingIssuesReferences: [ClosingIssueRef]
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        number = try container.decode(Int.self, forKey: .number)
+        title = try container.decode(String.self, forKey: .title)
+        url = try container.decode(String.self, forKey: .url)
+        state = try container.decode(String.self, forKey: .state)
+        isDraft = try container.decode(Bool.self, forKey: .isDraft)
+        author = try container.decode(Author.self, forKey: .author)
+        headRefName = try container.decode(String.self, forKey: .headRefName)
+        baseRefName = try container.decode(String.self, forKey: .baseRefName)
+        closingIssuesReferences = try container.decodeIfPresent([ClosingIssueRef].self, forKey: .closingIssuesReferences) ?? []
+    }
 }

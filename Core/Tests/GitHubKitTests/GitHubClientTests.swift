@@ -29,7 +29,22 @@ private let samplePRJSON = """
   "isDraft": false,
   "author": { "login": "icellan" },
   "headRefName": "fix/centrifuge-bidirectional",
-  "baseRefName": "main"
+  "baseRefName": "main",
+  "closingIssuesReferences": []
+}
+"""
+
+private let samplePRJSONWithClosingIssue = """
+{
+  "number": 944,
+  "title": "fix(asset/centrifuge): speak bidirectional Centrifuge protocol",
+  "url": "https://github.com/bsv-blockchain/teranode/pull/944",
+  "state": "OPEN",
+  "isDraft": false,
+  "author": { "login": "icellan" },
+  "headRefName": "fix/centrifuge-bidirectional",
+  "baseRefName": "main",
+  "closingIssuesReferences": [{ "number": 123 }, { "number": 456 }]
 }
 """
 
@@ -53,9 +68,10 @@ private let samplePRJSON = """
     #expect(review.prState == .open)
     #expect(review.origin == .added)
     #expect(review.addedAt == fixedDate)
+    #expect(review.closingIssueNumber == nil)
 
     let args = await runner.lastArguments
-    #expect(args == ["pr", "view", "944", "--repo", "bsv-blockchain/teranode", "--json", "number,title,url,state,isDraft,author,headRefName,baseRefName"])
+    #expect(args == ["pr", "view", "944", "--repo", "bsv-blockchain/teranode", "--json", "number,title,url,state,isDraft,author,headRefName,baseRefName,closingIssuesReferences"])
     let executable = await runner.lastExecutable
     #expect(executable == "/opt/homebrew/bin/gh")
 }
@@ -87,4 +103,14 @@ private let samplePRJSON = """
     await #expect(throws: GitHubError.self) {
         try await client.fetchReview(for: ref)
     }
+}
+
+@Test func fetchReviewPopulatesClosingIssueNumber() async throws {
+    let runner = RecordingRunner(result: CommandResult(exitCode: 0, standardOutput: samplePRJSONWithClosingIssue, standardError: ""))
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+    let ref = PRRef(owner: "bsv-blockchain", repo: "teranode", number: 944)
+
+    let review = try await client.fetchReview(for: ref)
+
+    #expect(review.closingIssueNumber == 123)
 }

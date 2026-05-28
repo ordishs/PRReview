@@ -20,7 +20,12 @@ public enum ClaudeLaunchBuilder {
         worktreePath: String,
         resolvedClaudePath: String
     ) -> ClaudeLaunchSpec {
-        let sessionName = "\(review.number) - \(review.author)"
+        let sessionName: String
+        if let issue = review.closingIssueNumber {
+            sessionName = "\(review.number) / #\(issue) - \(review.author)"
+        } else {
+            sessionName = "\(review.number) - \(review.author)"
+        }
         var args: [String] = []
         args.append(contentsOf: settings.claudeLaunchArgs)
         args.append("--name")
