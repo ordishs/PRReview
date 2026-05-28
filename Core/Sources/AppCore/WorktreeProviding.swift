@@ -14,10 +14,6 @@ public struct WorktreeReady: Sendable, Equatable {
     }
 }
 
-public enum WorktreeProviderError: Error, Sendable, Equatable {
-    case failed(String)
-}
-
 public protocol WorktreeProviding: Sendable {
     func ensureWorktree(for review: Review, registeredClonePath: String?) async throws -> WorktreeReady
 }

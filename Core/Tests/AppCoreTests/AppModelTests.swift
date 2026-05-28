@@ -5,6 +5,7 @@ import GitHubKit
 import CommandSupport
 import ReviewStore
 import DiffKit
+import WorktreeKit
 @testable import AppCore
 import ClaudeSessionKit
 
@@ -73,7 +74,7 @@ private struct StubWorktreeProvider: WorktreeProviding {
     var shouldThrow = false
     func ensureWorktree(for review: Review, registeredClonePath: String?) async throws -> WorktreeReady {
         if shouldThrow {
-            throw WorktreeProviderError.failed("stub failure")
+            throw WorktreeError.gitFailed(arguments: ["stub"], exitCode: 1, message: "stub failure")
         }
         return result
     }
