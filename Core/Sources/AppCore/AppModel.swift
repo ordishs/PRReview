@@ -170,13 +170,11 @@ public final class AppModel {
             try? await store.upsert(updated)
             reviews = await store.allReviews()
         }
-        let hasPriorSession = Self.hasClaudeTranscript(forCwd: ready.worktreePath)
         let spec = ClaudeLaunchBuilder.build(
             settings: .default,
             review: review,
             worktreePath: ready.worktreePath,
-            resolvedClaudePath: claudePath,
-            includeContinue: hasPriorSession
+            resolvedClaudePath: claudePath
         )
         let session = ClaudeSession(spec: spec)
         claudeSessions[review.id] = session
@@ -210,11 +208,4 @@ public final class AppModel {
         errorMessage = nil
     }
 
-    private static func hasClaudeTranscript(forCwd cwd: String) -> Bool {
-        let encoded = cwd.replacingOccurrences(of: "/", with: "-")
-        let projectsDir = (NSHomeDirectory() as NSString).appendingPathComponent(".claude/projects/\(encoded)")
-        var isDir: ObjCBool = false
-        let exists = FileManager.default.fileExists(atPath: projectsDir, isDirectory: &isDir)
-        return exists && isDir.boolValue
-    }
 }

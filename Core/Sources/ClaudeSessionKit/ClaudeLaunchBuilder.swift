@@ -18,13 +18,18 @@ public enum ClaudeLaunchBuilder {
         settings: Settings,
         review: Review,
         worktreePath: String,
-        resolvedClaudePath: String,
-        includeContinue: Bool
+        resolvedClaudePath: String
     ) -> ClaudeLaunchSpec {
-        var args = settings.claudeLaunchArgs + (review.claudeFlags ?? [])
-        if includeContinue {
-            args.append("--continue")
-        }
+        let sessionName = "\(review.number) - \(review.author)"
+        var args: [String] = []
+        args.append(contentsOf: settings.claudeLaunchArgs)
+        args.append("--name")
+        args.append(sessionName)
+        args.append("--effort")
+        args.append("max")
+        args.append("--dangerously-skip-permissions")
+        args.append(contentsOf: review.claudeFlags ?? [])
+        args.append("/review \(review.url.absoluteString)")
         return ClaudeLaunchSpec(
             executable: resolvedClaudePath,
             cwd: worktreePath,

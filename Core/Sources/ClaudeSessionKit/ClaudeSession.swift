@@ -34,8 +34,8 @@ public final class ClaudeSession {
         state = .starting
         let shellCommand = makeShellCommand()
         terminalView.startProcess(
-            executable: "/bin/sh",
-            args: ["-c", shellCommand],
+            executable: "/bin/zsh",
+            args: ["-l", "-c", shellCommand],
             environment: nil,
             execName: nil
         )

@@ -127,6 +127,9 @@ private struct TerminalHost: NSViewRepresentable {
             terminal.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             terminal.trailingAnchor.constraint(equalTo: container.trailingAnchor),
         ])
+        DispatchQueue.main.async {
+            terminal.window?.makeFirstResponder(terminal)
+        }
         return container
     }
 
