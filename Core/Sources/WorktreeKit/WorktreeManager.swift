@@ -28,10 +28,13 @@ public struct WorktreeManager: Sendable {
     }
 
     public func createWorktree(clonePath: String, owner: String, repo: String, number: Int, remoteName: String = "origin") async throws -> String {
-        try await runGit(["-C", clonePath, "fetch", remoteName, "refs/pull/\(number)/head"])
-        let sha = try await runGit(["-C", clonePath, "rev-parse", "FETCH_HEAD"]).trimmingCharacters(in: .whitespacesAndNewlines)
         let worktreesDir = managedRoot + "/worktrees"
         let worktreePath = worktreesDir + "/" + owner + "-" + repo + "-pr" + String(number)
+        if FileManager.default.fileExists(atPath: worktreePath) {
+            return worktreePath
+        }
+        try await runGit(["-C", clonePath, "fetch", remoteName, "refs/pull/\(number)/head"])
+        let sha = try await runGit(["-C", clonePath, "rev-parse", "FETCH_HEAD"]).trimmingCharacters(in: .whitespacesAndNewlines)
         try FileManager.default.createDirectory(atPath: worktreesDir, withIntermediateDirectories: true)
         try await runGit(["-C", clonePath, "worktree", "add", "--detach", worktreePath, sha])
         return worktreePath

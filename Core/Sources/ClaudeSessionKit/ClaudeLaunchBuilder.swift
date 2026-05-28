@@ -18,11 +18,13 @@ public enum ClaudeLaunchBuilder {
         settings: Settings,
         review: Review,
         worktreePath: String,
-        resolvedClaudePath: String
+        resolvedClaudePath: String,
+        includeContinue: Bool
     ) -> ClaudeLaunchSpec {
-        let args = settings.claudeLaunchArgs
-            + (review.claudeFlags ?? [])
-            + ["--continue"]
+        var args = settings.claudeLaunchArgs + (review.claudeFlags ?? [])
+        if includeContinue {
+            args.append("--continue")
+        }
         return ClaudeLaunchSpec(
             executable: resolvedClaudePath,
             cwd: worktreePath,

@@ -24,9 +24,9 @@ struct ClaudePaneView: View {
                 worktreeFailureView(message: message)
             case .sessionLive:
                 if let session = model.claudeSessions[review.id] {
-                    ZStack(alignment: .top) {
-                        TerminalHost(session: session)
+                    VStack(spacing: 0) {
                         exitOverlay(for: session)
+                        TerminalHost(session: session)
                     }
                 } else {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
