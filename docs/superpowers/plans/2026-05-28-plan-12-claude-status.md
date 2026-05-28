@@ -1363,5 +1363,5 @@ Verify `git log -1 --pretty=%B` is clean.
 
 - `swift test --package-path Core` → 93 tests, 0 failures (76 prior + 7 reader + 3 path + 4 watcher + 3 AppModel integration).
 - App builds; sidebar shows colored dots for live claude sessions; first `.working → .idle` per session fires a system notification with snippet; dots clear when reviews are removed or sessions end.
-- Five commits; working tree clean.
-- Known follow-ups (out of scope): notification deep-link to "open System Settings" if denied; status persistence across app restarts; idle threshold in Settings UI; the merged-queue discovery polling (separate Phase 2 plan).
+- 8 commits total (5 task commits + 3 review-driven fix commits); working tree clean.
+- Known follow-ups (out of scope): notification deep-link to "open System Settings" if denied; status persistence across app restarts; idle threshold in Settings UI; the merged-queue discovery polling (separate Phase 2 plan); animate `StatusDot` color transitions; make `firstIdleTransitionFiresNotificationOnce` test deterministic by exposing the notification dispatch Task as a testable handle.

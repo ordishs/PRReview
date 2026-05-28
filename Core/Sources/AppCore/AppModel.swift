@@ -30,6 +30,7 @@ public final class AppModel {
     private var lastVerdictSnippet: [String: String] = [:]
     private var notifiedIdleForSession: Set<String> = []
     private var tickTask: Task<Void, Never>?
+    private static let tickIntervalNanoseconds: UInt64 = 5_000_000_000
 
     private let store: ReviewStore
     private let client: GitHubClient
@@ -70,7 +71,7 @@ public final class AppModel {
         guard tickTask == nil else { return }
         tickTask = Task { @MainActor in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                try? await Task.sleep(nanoseconds: Self.tickIntervalNanoseconds)
                 self.tickAllActiveStatuses()
             }
         }
@@ -237,6 +238,7 @@ public final class AppModel {
     }
 
     func handleTranscriptEvent(reviewID: String, at date: Date, snippet: String?) {
+        guard claudeSessions[reviewID] != nil else { return }
         let isNewer = lastEventAt[reviewID].map { $0 < date } ?? true
         if isNewer {
             lastEventAt[reviewID] = date

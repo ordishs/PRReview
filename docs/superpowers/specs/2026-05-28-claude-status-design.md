@@ -284,8 +284,8 @@ test target):
 - **`ClaudeStatusReader`** — table-driven unit tests for the seven-row state matrix
   in the design discussion. Pure function, zero I/O.
 - **`TranscriptWatcher`** — integration tests against a temp directory:
-  - Fixture jsonl committed under `Core/Tests/ClaudeSessionKitTests/Fixtures/`
-    (PII-scrubbed real-format event lines).
+  - Sample event lines defined as inline `String` literals in
+    `TranscriptWatcherTests.swift` (no committed `Fixtures/` directory).
   - Write the fixture, start watcher, assert callback fires with latest timestamp.
   - Append a new line, assert callback fires again.
   - Stop watcher, append, assert no callback.
@@ -302,7 +302,9 @@ test target):
 - `firstIdleTransitionFiresNotificationOnce` — recording `NotificationPosting` stub;
   trigger working → idle twice in one session, assert one post.
 
-**Coverage delta:** Plan 12 adds ~6 new tests. Current 76 → roughly 82.
+**Coverage delta (actual after implementation):** Plan 12 added 17 new tests
+(7 `ClaudeStatusReader` + 3 `ClaudeTranscriptPath` + 4 `TranscriptWatcher` +
+3 `AppModel` integration). Current 76 → 93.
 
 **Out of test scope:**
 - Real `UNUserNotificationCenter` permission flows (manual E2E).
