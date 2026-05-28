@@ -51,9 +51,12 @@ public final class ClaudeSession {
         let pid = terminalView.process.shellPid
         guard pid > 0 else { return }
         kill(pid, SIGTERM)
-        Task.detached {
+        let process = terminalView.process
+        Task { @MainActor in
             try? await Task.sleep(nanoseconds: 500_000_000)
-            kill(pid, SIGKILL)
+            if process?.running == true {
+                kill(pid, SIGKILL)
+            }
         }
     }
 
@@ -70,9 +73,8 @@ public final class ClaudeSession {
     }
 }
 
-@MainActor
-private final class DelegateBridge: NSObject, @preconcurrency LocalProcessTerminalViewDelegate {
-    var onExit: ((Int32) -> Void)?
+private final class DelegateBridge: NSObject, LocalProcessTerminalViewDelegate {
+    nonisolated(unsafe) var onExit: (@Sendable (Int32) -> Void)?
 
     func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {}

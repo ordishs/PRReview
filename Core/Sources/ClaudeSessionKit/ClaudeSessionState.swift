@@ -1,5 +1,3 @@
-import Foundation
-
 public enum ClaudeSessionState: Sendable, Equatable {
     case starting
     case running
