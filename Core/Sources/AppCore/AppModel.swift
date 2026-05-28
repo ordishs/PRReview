@@ -68,10 +68,10 @@ public final class AppModel {
 
     private func startTickTimerIfNeeded() {
         guard tickTask == nil else { return }
-        tickTask = Task { @MainActor [weak self] in
+        tickTask = Task { @MainActor in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
-                self?.tickAllActiveStatuses()
+                self.tickAllActiveStatuses()
             }
         }
     }
@@ -237,8 +237,8 @@ public final class AppModel {
     }
 
     func handleTranscriptEvent(reviewID: String, at date: Date, snippet: String?) {
-        if let existing = lastEventAt[reviewID], existing >= date {
-        } else {
+        let isNewer = lastEventAt[reviewID].map { $0 < date } ?? true
+        if isNewer {
             lastEventAt[reviewID] = date
         }
         if let snippet, !snippet.isEmpty {
@@ -295,6 +295,8 @@ public final class AppModel {
     }
 
     public func terminateAllClaudeSessions() {
+        tickTask?.cancel()
+        tickTask = nil
         for session in claudeSessions.values { session.terminate() }
         for watcher in transcriptWatchers.values { watcher.stop() }
         claudeSessions.removeAll()
