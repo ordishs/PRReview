@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the placeholder in `DetailView.swift` for the **Claude Review** tab with a SwiftTerm-backed embedded terminal running `claude --continue` in the PR's worktree. One session per review, kept alive across tab/PR switches, killed on review removal and app quit.
+**Goal:** Replace the placeholder in `DetailView.swift` for the **Claude Review** tab with a SwiftTerm-backed embedded terminal running `claude` in the PR's worktree. One session per review, kept alive across tab/PR switches, killed on review removal and app quit.
+
+> **Post-implementation note (read me first):** This plan executed as written across four core tasks, then took seven additional commits in response to manual E2E feedback. The amendments are documented in the design spec — see the "Post-implementation amendments" section at the top of `docs/superpowers/specs/2026-05-28-claude-pane-design.md`. In particular, the `--continue` flag described throughout this plan was ultimately dropped (each launch is a fresh session, matching the legacy `~/.local/bin/review` zsh script's invocation); the shell wrapper is `/bin/zsh -l -c` not `/bin/sh -c`; and the `ClaudePaneView` exit overlay uses `VStack` not `ZStack`. The Task-by-Task code listings below preserve the original plan for reproducibility; the spec amendments override any divergence.
 
 **Architecture:** Grow `ClaudeSessionKit` from an empty namespace into a real module that owns a `ClaudeSession` (per-review `@Observable` class holding a SwiftTerm `LocalProcessTerminalView` and exposing a state machine). Extract a shared `WorktreeProvider` so the Claude pane and the Diff pane resolve the worktree through the same lazy path. `AppModel` gains a session registry keyed by review id; `ClaudePaneView` is an `NSViewRepresentable` that reparents the persistent `TerminalView` instance across SwiftUI rebuilds. App quit walks the registry and SIGTERMs each session.
 

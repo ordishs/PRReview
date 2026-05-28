@@ -1,9 +1,55 @@
 # PR Review — Plan 11: Claude Pane Design Spec
 
 - **Date:** 2026-05-28
-- **Status:** Approved (brainstorm) — ready for implementation planning
+- **Status:** Implemented with amendments — see "Post-implementation amendments" below
 - **Plan number:** 11 (Phase 1, follows Plan 10 management UX)
 - **Master spec:** `docs/superpowers/specs/2026-05-27-pr-review-app-design.md`
+
+> **Post-implementation amendments**
+>
+> The original brainstorm-time decisions below are preserved for context. Manual
+> E2E surfaced behavior the brainstorm assumed but Claude Code didn't deliver,
+> and the user asked us to match the legacy `~/.local/bin/review` zsh script's
+> invocation exactly. The following amendments override the original decisions
+> and are the authoritative contract for Plan 12 onwards:
+>
+> 1. **Resume strategy (overrides Decision #1):** `--continue` is **not** passed.
+>    Each launch is a fresh `claude` session in the worktree cwd. The session is
+>    named via `--name "<NUM> - <AUTHOR>"` so the user can find it later via
+>    `claude --resume` if needed. We trialled gated `--continue` (probe
+>    `~/.claude/projects/<encoded-cwd>`) but dropped it to match the script.
+> 2. **Launch invocation (refines Decisions #1, #7):** The exact args, in order,
+>    are: `settings.claudeLaunchArgs` (prepended), `--name <SESSION>`,
+>    `--effort max`, `--dangerously-skip-permissions`,
+>    `review.claudeFlags` (per-review), then `/review <URL>` as the trailing
+>    positional argument (a single string containing the URL).
+> 3. **Shell wrapper:** `/bin/zsh -l -c "cd <cwd> && exec <claude> <args>..."`
+>    (login shell so `.zshenv`/`.zprofile` are sourced for the full user env).
+>    Originally `/bin/sh -c`.
+> 4. **Exit overlay layout (refines Decision #4):** The exit banner is rendered
+>    in a `VStack` above the terminal, not a `ZStack` overlapping the top of it.
+>    The original layout obscured the very text the banner was reporting on.
+> 5. **Pre-warm (new):** `AppModel.prefetch(for:)` fires `ensureClaudeSession` and
+>    `loadDiff` as fire-and-forget tasks when a PR is added (`addPR`) or
+>    selection changes in the sidebar (`ContentView.onChange(of: selection)`).
+>    Matches the legacy script's eager-all-three behavior.
+> 6. **Concurrency guards (new):** `ensureClaudeSession` and `loadDiff` re-check
+>    state after their `await` suspension points to handle concurrent prefetch
+>    races and in-flight-during-removeReview. Without these, prefetch could
+>    double-start a session or resurrect a removed review in the store.
+> 7. **Terminal focus on attach (new):** `TerminalHost.makeNSView` calls
+>    `terminal.window?.makeFirstResponder(terminal)` on the next runloop tick so
+>    the terminal grabs focus as soon as the Claude tab is mounted.
+> 8. **Stale worktree handling (refines worktree gating):**
+>    `WorktreeManager.createWorktree` and `WorktreeProvider.ensureWorktree` both
+>    return early when the target worktree path already exists on disk. If the
+>    directory is a stale leftover (not a registered git worktree), downstream
+>    git ops surface the error inline — acceptable degradation, tracked as
+>    follow-up.
+> 9. **Session-name detail (deferred):** The legacy script's optional
+>    `/#<ISSUE>` segment in the session name is not implemented — `Review` does
+>    not currently carry `closingIssuesReferences`. Tracked as a GitHubKit
+>    follow-up.
 
 ## Summary
 
