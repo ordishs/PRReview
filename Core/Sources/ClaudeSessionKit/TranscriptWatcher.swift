@@ -33,10 +33,7 @@ public final class TranscriptWatcher {
         directorySource = nil
         fileSource?.cancel()
         fileSource = nil
-        if currentFileFD >= 0 {
-            close(currentFileFD)
-            currentFileFD = -1
-        }
+        currentFileFD = -1
         currentFileURL = nil
         readOffset = 0
         onEvent = nil
@@ -86,10 +83,7 @@ public final class TranscriptWatcher {
     private func attachFileSource(_ url: URL) {
         fileSource?.cancel()
         fileSource = nil
-        if currentFileFD >= 0 {
-            close(currentFileFD)
-            currentFileFD = -1
-        }
+        currentFileFD = -1
         let fd = open(url.path, O_EVTONLY)
         guard fd >= 0 else { return }
         currentFileFD = fd
