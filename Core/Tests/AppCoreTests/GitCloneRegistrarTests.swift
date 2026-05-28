@@ -53,3 +53,32 @@ private func remoteListing(_ entries: [(name: String, url: String)]) -> String {
         try await registrar.validate(localPath: "/some/path", expectedOwner: "bsv-blockchain", expectedRepo: "teranode")
     }
 }
+
+@Test func detectRepositoriesReturnsAllGitHubRemotes() async throws {
+    let stdout = remoteListing([
+        (name: "origin", url: "git@github.com:ordishs/teranode.git"),
+        (name: "upstream", url: "https://github.com/bsv-blockchain/teranode.git"),
+    ])
+    let runner = StubRunner(result: CommandResult(exitCode: 0, standardOutput: stdout, standardError: ""))
+    let registrar = GitCloneRegistrar(runner: runner, gitPath: "git")
+    let identities = try await registrar.detectRepositories(at: "/some/path")
+    #expect(identities.sorted() == ["bsv-blockchain/teranode", "ordishs/teranode"])
+}
+
+@Test func detectRepositoriesReturnsEmptyWhenNoGitHubRemotes() async throws {
+    let stdout = remoteListing([
+        (name: "origin", url: "git@gitlab.com:internal/repo.git"),
+    ])
+    let runner = StubRunner(result: CommandResult(exitCode: 0, standardOutput: stdout, standardError: ""))
+    let registrar = GitCloneRegistrar(runner: runner, gitPath: "git")
+    let identities = try await registrar.detectRepositories(at: "/some/path")
+    #expect(identities.isEmpty)
+}
+
+@Test func detectRepositoriesThrowsWhenNotAGitRepository() async {
+    let runner = StubRunner(result: CommandResult(exitCode: 128, standardOutput: "", standardError: "fatal: not a git repository"))
+    let registrar = GitCloneRegistrar(runner: runner, gitPath: "git")
+    await #expect(throws: RegistrationError.self) {
+        _ = try await registrar.detectRepositories(at: "/some/path")
+    }
+}

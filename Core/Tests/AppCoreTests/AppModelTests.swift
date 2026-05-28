@@ -45,10 +45,17 @@ private struct StubDiffLoader: DiffLoading {
 
 private struct StubRegistrar: CloneRegistering {
     var shouldThrow: RegistrationError? = nil
+    var detectedRepositories: [String] = []
     func validate(localPath: String, expectedOwner: String, expectedRepo: String) async throws {
         if let error = shouldThrow {
             throw error
         }
+    }
+    func detectRepositories(at localPath: String) async throws -> [String] {
+        if let error = shouldThrow {
+            throw error
+        }
+        return detectedRepositories
     }
 }
 
@@ -224,4 +231,80 @@ private func stubClient() -> GitHubClient {
 
     let captured = await recorder.lastRegisteredClonePath
     #expect(captured == nil)
+}
+
+@Test @MainActor func registerLocalCloneRegistersAllDetected() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let registrar = StubRegistrar(detectedRepositories: ["ordishs/teranode", "bsv-blockchain/teranode"])
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), cloneRegistrar: registrar)
+
+    await model.registerLocalClone(at: "/Users/me/dev/teranode")
+
+    #expect(model.errorMessage == nil)
+    #expect(model.registeredRepos.count == 2)
+    let identities = model.registeredRepos.map(\.remoteIdentity).sorted()
+    #expect(identities == ["github.com/bsv-blockchain/teranode", "github.com/ordishs/teranode"])
+    #expect(model.registeredRepos.allSatisfy { $0.localClonePath == "/Users/me/dev/teranode" })
+}
+
+@Test @MainActor func registerLocalCloneSetsErrorWhenNoReposFound() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let registrar = StubRegistrar(detectedRepositories: [])
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), cloneRegistrar: registrar)
+
+    await model.registerLocalClone(at: "/Users/me/empty")
+
+    #expect(model.errorMessage != nil)
+    #expect(model.registeredRepos.isEmpty)
+}
+
+@Test @MainActor func removeRegisteredRepoDeletes() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    try await store.upsert(RegisteredRepo(
+        remoteIdentity: "github.com/bsv-blockchain/teranode",
+        localClonePath: "/Users/me/dev/teranode",
+        defaultBase: "main"
+    ))
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), cloneRegistrar: StubRegistrar())
+    await model.load()
+    #expect(model.registeredRepos.count == 1)
+
+    await model.removeRegisteredRepo(remoteIdentity: "github.com/bsv-blockchain/teranode")
+
+    #expect(model.registeredRepos.isEmpty)
+}
+
+@Test @MainActor func removeReviewRemovesFromStoreAndClearsSelection() async throws {
+    let url = tempStoreURL()
+    let store = try ReviewStore(fileURL: url)
+    let review = sampleReview()
+    try await store.upsert(review)
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), cloneRegistrar: StubRegistrar())
+    await model.load()
+    model.selection = review.id
+
+    await model.removeReview(id: review.id)
+
+    #expect(model.reviews.isEmpty)
+    #expect(model.selection == nil)
+    let reloaded = try ReviewStore(fileURL: url)
+    #expect(await reloaded.allReviews().isEmpty)
+}
+
+@Test @MainActor func removeReviewBestEffortRemovesWorktreeDir() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let tempWorktree = FileManager.default.temporaryDirectory
+        .appendingPathComponent("wt-\(UUID().uuidString)", isDirectory: true)
+        .path
+    try FileManager.default.createDirectory(atPath: tempWorktree, withIntermediateDirectories: true)
+    var review = sampleReview()
+    review.worktreePath = tempWorktree
+    try await store.upsert(review)
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), cloneRegistrar: StubRegistrar())
+    await model.load()
+
+    await model.removeReview(id: review.id)
+
+    #expect(model.reviews.isEmpty)
+    #expect(!FileManager.default.fileExists(atPath: tempWorktree))
 }

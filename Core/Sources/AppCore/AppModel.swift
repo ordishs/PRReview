@@ -64,6 +64,51 @@ public final class AppModel {
         }
     }
 
+    public func registerLocalClone(at localPath: String) async {
+        do {
+            let identities = try await cloneRegistrar.detectRepositories(at: localPath)
+            guard !identities.isEmpty else {
+                errorMessage = "No GitHub repositories found in \(localPath)"
+                return
+            }
+            for identity in identities {
+                let entry = RegisteredRepo(remoteIdentity: "github.com/\(identity)", localClonePath: localPath, defaultBase: "main")
+                try await store.upsert(entry)
+            }
+            registeredRepos = await store.allRepos()
+            errorMessage = nil
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    public func removeRegisteredRepo(remoteIdentity: String) async {
+        do {
+            try await store.removeRepo(id: remoteIdentity)
+            registeredRepos = await store.allRepos()
+            errorMessage = nil
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    public func removeReview(id: String) async {
+        guard let review = reviews.first(where: { $0.id == id }) else { return }
+        if let worktreePath = review.worktreePath, FileManager.default.fileExists(atPath: worktreePath) {
+            try? FileManager.default.removeItem(atPath: worktreePath)
+        }
+        do {
+            try await store.removeReview(id: id)
+            reviews = await store.allReviews()
+            if selection == id {
+                selection = nil
+            }
+            errorMessage = nil
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
     public func loadDiff(for review: Review) async {
         diffState = .loading
         do {
