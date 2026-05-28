@@ -8,38 +8,42 @@ struct DiffPaneView: View {
     let review: Review
 
     var body: some View {
-        Group {
-            switch model.diffState {
-            case .idle, .loading:
-                VStack(spacing: 10) {
-                    ProgressView()
-                    Text("Checking out worktree and computing diff…")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .failed(let message):
-                ScrollView {
-                    Text(message)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.red)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                }
-            case .loaded(let files):
-                if files.isEmpty {
-                    Text("No changes")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
+        VStack(spacing: 0) {
+            DiffToolbarView(model: model, review: review)
+            Divider()
+            Group {
+                switch model.diffState {
+                case .idle, .loading:
+                    VStack(spacing: 10) {
+                        ProgressView()
+                        Text("Checking out worktree and computing diff…")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .failed(let message):
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 16) {
-                            ForEach(files) { file in
-                                DiffFileView(file: file)
+                        Text(message)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.red)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                    }
+                case .loaded(let files):
+                    if files.isEmpty {
+                        Text("No changes")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 16) {
+                                ForEach(files) { file in
+                                    DiffFileView(file: file)
+                                }
                             }
+                            .padding()
                         }
-                        .padding()
                     }
                 }
             }
