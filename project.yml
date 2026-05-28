@@ -20,6 +20,8 @@ targets:
         product: AppCore
       - package: PRReviewCore
         product: DiffKit
+      - package: PRReviewCore
+        product: ClaudeSessionKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ordishs.PRReview

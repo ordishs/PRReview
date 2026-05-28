@@ -3,6 +3,7 @@ import AppCore
 
 @main
 struct PRReviewApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model: AppModel?
     @State private var startupError: String?
     @State private var showingManage = false
@@ -30,6 +31,7 @@ struct PRReviewApp: App {
                     let created = try AppModelFactory.makeDefault()
                     await created.load()
                     model = created
+                    appDelegate.model = created
                 } catch {
                     startupError = "Failed to start: \(error)"
                 }

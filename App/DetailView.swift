@@ -31,17 +31,9 @@ struct DetailView: View {
             case .diff:
                 DiffPaneView(model: model, review: review)
             case .claude:
-                placeholder(title: "Claude review", subtitle: "The embedded terminal lands with the Claude pane.")
+                ClaudePaneView(model: model, review: review)
             }
         }
         .navigationTitle("#\(review.number) \(review.title)")
-    }
-
-    private func placeholder(title: String, subtitle: String) -> some View {
-        VStack(spacing: 8) {
-            Text(title).font(.title3)
-            Text(subtitle).font(.callout).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
