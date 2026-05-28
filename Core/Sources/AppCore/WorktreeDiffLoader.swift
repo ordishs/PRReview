@@ -45,6 +45,7 @@ public struct WorktreeDiffLoader: DiffLoading {
                 remoteName: remoteName
             )
         }
+        try await worktreeManager.fetch(clonePath: clonePath, remoteName: remoteName, ref: review.baseBranch)
         let base = try await worktreeManager.mergeBase(worktreePath: worktreePath, baseRef: "\(remoteName)/\(review.baseBranch)")
         let files = try await diffService.diff(worktreePath: worktreePath, baseRef: base)
         return DiffResult(worktreePath: worktreePath, files: files)

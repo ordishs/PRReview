@@ -45,6 +45,10 @@ public struct WorktreeManager: Sendable {
         try await runGit(["-C", clonePath, "worktree", "remove", worktreePath])
     }
 
+    public func fetch(clonePath: String, remoteName: String, ref: String) async throws {
+        try await runGit(["-C", clonePath, "fetch", remoteName, ref])
+    }
+
     public func listRemotes(clonePath: String) async throws -> [(name: String, url: String)] {
         let result = try await runner.run(executable: gitPath, arguments: ["-C", clonePath, "remote", "-v"])
         guard result.exitCode == 0 else {
