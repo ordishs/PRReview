@@ -69,6 +69,13 @@ private actor RecordingDiffLoader: DiffLoading {
     }
 }
 
+private actor StubNotificationPoster: NotificationPosting {
+    private(set) var posted: [(reviewID: String, title: String, body: String)] = []
+    func postReviewReady(reviewID: String, title: String, body: String) async {
+        posted.append((reviewID: reviewID, title: title, body: body))
+    }
+}
+
 private struct StubWorktreeProvider: WorktreeProviding {
     var result: WorktreeReady = WorktreeReady(clonePath: "/tmp/clone", worktreePath: "/tmp/wt", remoteName: "origin")
     var shouldThrow = false
@@ -97,7 +104,7 @@ private func stubClient() -> GitHubClient {
 @Test @MainActor func addPRFetchesStoresAndSelects() async throws {
     let store = try ReviewStore(fileURL: tempStoreURL())
     let client = GitHubClient(runner: StubRunner(result: CommandResult(exitCode: 0, standardOutput: prJSON, standardError: "")), ghPath: "gh")
-    let model = AppModel(store: store, client: client, diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: client, diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
 
     await model.addPR(urlString: "https://github.com/bsv-blockchain/teranode/pull/944")
 
@@ -110,7 +117,7 @@ private func stubClient() -> GitHubClient {
 @Test @MainActor func addPRSetsErrorOnInvalidURL() async throws {
     let store = try ReviewStore(fileURL: tempStoreURL())
     let client = GitHubClient(runner: StubRunner(result: CommandResult(exitCode: 0, standardOutput: "", standardError: "")), ghPath: "gh")
-    let model = AppModel(store: store, client: client, diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: client, diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
 
     await model.addPR(urlString: "not a pr url")
 
@@ -121,7 +128,7 @@ private func stubClient() -> GitHubClient {
 @Test @MainActor func addPRSurfacesCommandFailureAndDismisses() async throws {
     let store = try ReviewStore(fileURL: tempStoreURL())
     let client = GitHubClient(runner: StubRunner(result: CommandResult(exitCode: 1, standardOutput: "", standardError: "no pull requests found")), ghPath: "gh")
-    let model = AppModel(store: store, client: client, diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: client, diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
 
     await model.addPR(urlString: "https://github.com/bsv-blockchain/teranode/pull/944")
 
@@ -142,7 +149,7 @@ private func stubClient() -> GitHubClient {
         origin: .added, prState: .open, addedAt: Date(timeIntervalSince1970: 1_700_000_000)
     ))
     let client = GitHubClient(runner: StubRunner(result: CommandResult(exitCode: 0, standardOutput: "", standardError: "")), ghPath: "gh")
-    let model = AppModel(store: try ReviewStore(fileURL: url), client: client, diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: try ReviewStore(fileURL: url), client: client, diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
 
     await model.load()
 
@@ -153,7 +160,7 @@ private func stubClient() -> GitHubClient {
 @Test @MainActor func loadDiffSetsLoadedState() async throws {
     let store = try ReviewStore(fileURL: tempStoreURL())
     let file = DiffFile(oldPath: "foo.txt", newPath: "foo.txt", changeKind: .modified, hunks: [], addedCount: 1, removedCount: 0)
-    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(files: [file]), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(files: [file]), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
 
     await model.loadDiff(for: sampleReview())
 
@@ -162,7 +169,7 @@ private func stubClient() -> GitHubClient {
 
 @Test @MainActor func loadDiffSetsFailedStateOnError() async throws {
     let store = try ReviewStore(fileURL: tempStoreURL())
-    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(shouldThrow: true), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(shouldThrow: true), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
 
     await model.loadDiff(for: sampleReview())
 
@@ -177,7 +184,7 @@ private func stubClient() -> GitHubClient {
     let store = try ReviewStore(fileURL: url)
     let review = sampleReview()
     try await store.upsert(review)
-    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(files: []), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(files: []), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
     await model.load()
 
     await model.loadDiff(for: review)
@@ -191,7 +198,7 @@ private func stubClient() -> GitHubClient {
     let store = try ReviewStore(fileURL: url)
     let review = sampleReview()
     try await store.upsert(review)
-    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
     await model.load()
 
     await model.registerClone(for: review, localPath: "/Users/me/dev/teranode")
@@ -205,7 +212,7 @@ private func stubClient() -> GitHubClient {
 @Test @MainActor func registerCloneSetsErrorOnValidationFailure() async throws {
     let store = try ReviewStore(fileURL: tempStoreURL())
     let registrar = StubRegistrar(shouldThrow: .originMismatch(expected: "bsv-blockchain/teranode", actual: "x/y"))
-    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: registrar, claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: registrar, claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
 
     await model.registerClone(for: sampleReview(), localPath: "/wrong/path")
 
@@ -223,7 +230,7 @@ private func stubClient() -> GitHubClient {
         defaultBase: "main"
     ))
     let recorder = RecordingDiffLoader()
-    let model = AppModel(store: store, client: stubClient(), diffLoader: recorder, worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: recorder, worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
     await model.load()
 
     await model.loadDiff(for: review)
@@ -237,7 +244,7 @@ private func stubClient() -> GitHubClient {
     let review = sampleReview()
     try await store.upsert(review)
     let recorder = RecordingDiffLoader()
-    let model = AppModel(store: store, client: stubClient(), diffLoader: recorder, worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: recorder, worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
     await model.load()
 
     await model.loadDiff(for: review)
@@ -249,7 +256,7 @@ private func stubClient() -> GitHubClient {
 @Test @MainActor func registerLocalCloneRegistersAllDetected() async throws {
     let store = try ReviewStore(fileURL: tempStoreURL())
     let registrar = StubRegistrar(detectedRepositories: ["ordishs/teranode", "bsv-blockchain/teranode"])
-    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: registrar, claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: registrar, claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
 
     await model.registerLocalClone(at: "/Users/me/dev/teranode")
 
@@ -263,7 +270,7 @@ private func stubClient() -> GitHubClient {
 @Test @MainActor func registerLocalCloneSetsErrorWhenNoReposFound() async throws {
     let store = try ReviewStore(fileURL: tempStoreURL())
     let registrar = StubRegistrar(detectedRepositories: [])
-    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: registrar, claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: registrar, claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
 
     await model.registerLocalClone(at: "/Users/me/empty")
 
@@ -278,7 +285,7 @@ private func stubClient() -> GitHubClient {
         localClonePath: "/Users/me/dev/teranode",
         defaultBase: "main"
     ))
-    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
     await model.load()
     #expect(model.registeredRepos.count == 1)
 
@@ -292,7 +299,7 @@ private func stubClient() -> GitHubClient {
     let store = try ReviewStore(fileURL: url)
     let review = sampleReview()
     try await store.upsert(review)
-    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
     await model.load()
     model.selection = review.id
 
@@ -313,7 +320,7 @@ private func stubClient() -> GitHubClient {
     var review = sampleReview()
     review.worktreePath = tempWorktree
     try await store.upsert(review)
-    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true")
+    let model = AppModel(store: store, client: stubClient(), diffLoader: StubDiffLoader(), worktreeProvider: StubWorktreeProvider(), cloneRegistrar: StubRegistrar(), claudePath: "/usr/bin/true", notificationPoster: StubNotificationPoster())
     await model.load()
 
     await model.removeReview(id: review.id)
@@ -330,7 +337,8 @@ private func stubClient() -> GitHubClient {
         diffLoader: StubDiffLoader(),
         worktreeProvider: StubWorktreeProvider(shouldThrow: true),
         cloneRegistrar: StubRegistrar(),
-        claudePath: "/usr/bin/true"
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
     )
     let review = sampleReview()
 
@@ -343,4 +351,97 @@ private func stubClient() -> GitHubClient {
         Issue.record("expected .worktreeFailed, got \(String(describing: state))")
     }
     #expect(model.claudeSessions[review.id] == nil)
+}
+
+@Test @MainActor func ensureClaudeSessionInitializesStatus() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let review = sampleReview()
+    try await store.upsert(review)
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    await model.ensureClaudeSession(for: review)
+
+    let status = model.claudeStatuses[review.id]
+    #expect(status == .starting)
+}
+
+@Test @MainActor func recomputeStatusFlipsToIdle() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let review = sampleReview()
+    try await store.upsert(review)
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster(),
+        statusReader: ClaudeStatusReader(idleThresholdSeconds: 0.1)
+    )
+    await model.load()
+    await model.ensureClaudeSession(for: review)
+
+    model.handleTranscriptEvent(reviewID: review.id, at: Date(), snippet: "Hello")
+    model.recomputeStatus(for: review.id, now: Date())
+
+    let firstStatus = model.claudeStatuses[review.id]
+    #expect(firstStatus == .working)
+
+    let later = Date().addingTimeInterval(1)
+    model.recomputeStatus(for: review.id, now: later)
+
+    let secondStatus = model.claudeStatuses[review.id]
+    if case .idle(_, let snippet) = secondStatus {
+        #expect(snippet == "Hello")
+    } else {
+        Issue.record("expected .idle, got \(String(describing: secondStatus))")
+    }
+}
+
+@Test @MainActor func firstIdleTransitionFiresNotificationOnce() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let review = sampleReview()
+    try await store.upsert(review)
+    let poster = StubNotificationPoster()
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: poster,
+        statusReader: ClaudeStatusReader(idleThresholdSeconds: 0.1)
+    )
+    await model.load()
+    await model.ensureClaudeSession(for: review)
+
+    let t0 = Date()
+    model.handleTranscriptEvent(reviewID: review.id, at: t0, snippet: "first")
+    model.recomputeStatus(for: review.id, now: t0)
+
+    let t1 = t0.addingTimeInterval(1)
+    model.recomputeStatus(for: review.id, now: t1)
+
+    let t2 = t1.addingTimeInterval(0.05)
+    model.handleTranscriptEvent(reviewID: review.id, at: t2, snippet: "second")
+    model.recomputeStatus(for: review.id, now: t2)
+
+    let t3 = t2.addingTimeInterval(1)
+    model.recomputeStatus(for: review.id, now: t3)
+
+    try await Task.sleep(nanoseconds: 100_000_000)
+    let posted = await poster.posted
+    #expect(posted.count == 1)
+    #expect(posted.first?.reviewID == review.id)
 }

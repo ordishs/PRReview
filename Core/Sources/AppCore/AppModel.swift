@@ -23,6 +23,13 @@ public final class AppModel {
     public private(set) var registeredRepos: [RegisteredRepo] = []
     public private(set) var claudeSessions: [String: ClaudeSession] = [:]
     public private(set) var claudePaneState: [String: ClaudePaneState] = [:]
+    public private(set) var claudeStatuses: [String: ClaudeStatus] = [:]
+
+    private var transcriptWatchers: [String: TranscriptWatcher] = [:]
+    private var lastEventAt: [String: Date] = [:]
+    private var lastVerdictSnippet: [String: String] = [:]
+    private var notifiedIdleForSession: Set<String> = []
+    private var tickTask: Task<Void, Never>?
 
     private let store: ReviewStore
     private let client: GitHubClient
@@ -30,6 +37,8 @@ public final class AppModel {
     private let worktreeProvider: WorktreeProviding
     private let cloneRegistrar: CloneRegistering
     private let claudePath: String
+    private let notificationPoster: NotificationPosting
+    private let statusReader: ClaudeStatusReader
 
     public init(
         store: ReviewStore,
@@ -37,7 +46,9 @@ public final class AppModel {
         diffLoader: DiffLoading,
         worktreeProvider: WorktreeProviding,
         cloneRegistrar: CloneRegistering,
-        claudePath: String
+        claudePath: String,
+        notificationPoster: NotificationPosting,
+        statusReader: ClaudeStatusReader = ClaudeStatusReader()
     ) {
         self.store = store
         self.client = client
@@ -45,11 +56,31 @@ public final class AppModel {
         self.worktreeProvider = worktreeProvider
         self.cloneRegistrar = cloneRegistrar
         self.claudePath = claudePath
+        self.notificationPoster = notificationPoster
+        self.statusReader = statusReader
     }
 
     public func load() async {
         reviews = await store.allReviews()
         registeredRepos = await store.allRepos()
+        startTickTimerIfNeeded()
+    }
+
+    private func startTickTimerIfNeeded() {
+        guard tickTask == nil else { return }
+        tickTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                self?.tickAllActiveStatuses()
+            }
+        }
+    }
+
+    private func tickAllActiveStatuses() {
+        let now = Date()
+        for id in claudeSessions.keys {
+            recomputeStatus(for: id, now: now)
+        }
     }
 
     public func addPR(urlString: String) async {
@@ -190,18 +221,89 @@ public final class AppModel {
         claudeSessions[review.id] = session
         claudePaneState[review.id] = .sessionLive
         session.start()
+        attachTranscriptWatcher(reviewID: review.id, worktreePath: ready.worktreePath)
+        recomputeStatus(for: review.id, now: Date())
+    }
+
+    private func attachTranscriptWatcher(reviewID: String, worktreePath: String) {
+        if transcriptWatchers[reviewID] != nil { return }
+        let dir = ClaudeTranscriptPath.directoryURL(forWorktreePath: worktreePath)
+        let watcher = TranscriptWatcher(transcriptDir: dir)
+        watcher.start { [weak self] date, snippet in
+            guard let self else { return }
+            self.handleTranscriptEvent(reviewID: reviewID, at: date, snippet: snippet)
+        }
+        transcriptWatchers[reviewID] = watcher
+    }
+
+    func handleTranscriptEvent(reviewID: String, at date: Date, snippet: String?) {
+        if let existing = lastEventAt[reviewID], existing >= date {
+        } else {
+            lastEventAt[reviewID] = date
+        }
+        if let snippet, !snippet.isEmpty {
+            lastVerdictSnippet[reviewID] = snippet
+        }
+        recomputeStatus(for: reviewID, now: Date())
+    }
+
+    func recomputeStatus(for reviewID: String, now: Date = Date()) {
+        let processState = claudeSessions[reviewID]?.state ?? .starting
+        let newStatus = statusReader.status(
+            processState: processState,
+            lastEventAt: lastEventAt[reviewID],
+            lastVerdictSnippet: lastVerdictSnippet[reviewID],
+            now: now
+        )
+        let oldStatus = claudeStatuses[reviewID]
+        claudeStatuses[reviewID] = newStatus
+        if shouldFireReviewReady(old: oldStatus, new: newStatus, reviewID: reviewID) {
+            notifiedIdleForSession.insert(reviewID)
+            postReviewReadyNotification(for: reviewID, status: newStatus)
+        }
+    }
+
+    private func shouldFireReviewReady(old: ClaudeStatus?, new: ClaudeStatus, reviewID: String) -> Bool {
+        guard !notifiedIdleForSession.contains(reviewID) else { return false }
+        guard case .idle = new else { return false }
+        guard case .working = old else { return false }
+        return true
+    }
+
+    private func postReviewReadyNotification(for reviewID: String, status: ClaudeStatus) {
+        guard let review = reviews.first(where: { $0.id == reviewID }) else { return }
+        var snippet: String? = nil
+        if case .idle(_, let s) = status { snippet = s }
+        let title = "Review ready · #\(review.number)"
+        let body = snippet ?? "\(review.owner)/\(review.repo) · \(review.author)"
+        let poster = notificationPoster
+        Task {
+            await poster.postReviewReady(reviewID: reviewID, title: title, body: body)
+        }
     }
 
     func terminateClaudeSession(for id: String) {
         claudeSessions[id]?.terminate()
         claudeSessions.removeValue(forKey: id)
         claudePaneState.removeValue(forKey: id)
+        transcriptWatchers[id]?.stop()
+        transcriptWatchers.removeValue(forKey: id)
+        claudeStatuses.removeValue(forKey: id)
+        lastEventAt.removeValue(forKey: id)
+        lastVerdictSnippet.removeValue(forKey: id)
+        notifiedIdleForSession.remove(id)
     }
 
     public func terminateAllClaudeSessions() {
         for session in claudeSessions.values { session.terminate() }
+        for watcher in transcriptWatchers.values { watcher.stop() }
         claudeSessions.removeAll()
         claudePaneState.removeAll()
+        transcriptWatchers.removeAll()
+        claudeStatuses.removeAll()
+        lastEventAt.removeAll()
+        lastVerdictSnippet.removeAll()
+        notifiedIdleForSession.removeAll()
     }
 
     public func prefetch(for review: Review) {
@@ -217,5 +319,4 @@ public final class AppModel {
     public func dismissError() {
         errorMessage = nil
     }
-
 }

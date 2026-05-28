@@ -23,6 +23,7 @@ public enum AppModelFactory {
         let diffService = DiffService(runner: ProcessCommandRunner(), gitPath: gitPath)
         let diffLoader = WorktreeDiffLoader(worktreeProvider: worktreeProvider, worktreeManager: worktreeManager, diffService: diffService)
         let cloneRegistrar = GitCloneRegistrar(runner: ProcessCommandRunner(), gitPath: gitPath)
+        let notificationPoster = UserNotificationsPoster()
 
         return AppModel(
             store: store,
@@ -30,7 +31,8 @@ public enum AppModelFactory {
             diffLoader: diffLoader,
             worktreeProvider: worktreeProvider,
             cloneRegistrar: cloneRegistrar,
-            claudePath: claudePath
+            claudePath: claudePath,
+            notificationPoster: notificationPoster
         )
     }
 }
