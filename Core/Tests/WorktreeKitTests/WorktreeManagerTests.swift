@@ -5,6 +5,22 @@ import WorktreeKit
 
 private let gitPath = "/opt/homebrew/bin/git"
 
+private actor StubRunner: CommandRunner {
+    private let responses: [(arguments: [String], result: CommandResult)]
+    private var callIndex = 0
+    init(responses: [(arguments: [String], result: CommandResult)]) {
+        self.responses = responses
+    }
+    func run(executable: String, arguments: [String]) async throws -> CommandResult {
+        if callIndex < responses.count {
+            let r = responses[callIndex]
+            callIndex += 1
+            return r.result
+        }
+        return CommandResult(exitCode: 0, standardOutput: "", standardError: "")
+    }
+}
+
 private struct GitFixture {
     let root: String
     let remoteURL: String
@@ -109,4 +125,59 @@ private func makeFixture(prNumber: Int) async throws -> GitFixture {
     #expect(FileManager.default.fileExists(atPath: worktree))
     try await manager.removeWorktree(clonePath: clone, worktreePath: worktree)
     #expect(!FileManager.default.fileExists(atPath: worktree))
+}
+
+@Test func createWorktreeRejectsStaleDirectory() async throws {
+    let tmpRoot = FileManager.default.temporaryDirectory
+        .appendingPathComponent("stale-wt-\(UUID().uuidString)", isDirectory: true).path
+    let managedRoot = tmpRoot + "/managed"
+    let worktreesDir = managedRoot + "/worktrees"
+    let worktreePath = worktreesDir + "/o-r-pr1"
+    try FileManager.default.createDirectory(atPath: worktreePath, withIntermediateDirectories: true)
+
+    let porcelainWithoutStalePath = "worktree /some/other/path\nHEAD abc123\nbranch refs/heads/main\n"
+    let stub = StubRunner(responses: [
+        (arguments: ["-C", tmpRoot + "/clone", "worktree", "list", "--porcelain"],
+         result: CommandResult(exitCode: 0, standardOutput: porcelainWithoutStalePath, standardError: ""))
+    ])
+    let manager = WorktreeManager(runner: stub, gitPath: gitPath, managedRoot: managedRoot)
+
+    await #expect(throws: WorktreeError.self) {
+        _ = try await manager.createWorktree(clonePath: tmpRoot + "/clone", owner: "o", repo: "r", number: 1)
+    }
+
+    let errorThrown: WorktreeError? = try? await {
+        do {
+            _ = try await manager.createWorktree(clonePath: tmpRoot + "/clone", owner: "o", repo: "r", number: 1)
+            return nil
+        } catch let e as WorktreeError {
+            return e
+        }
+    }()
+
+    if case .gitFailed(_, _, let message) = errorThrown {
+        #expect(message.contains("not a registered git worktree"))
+        #expect(message.contains(worktreePath))
+    } else {
+        Issue.record("expected WorktreeError.gitFailed, got \(String(describing: errorThrown))")
+    }
+}
+
+@Test func createWorktreeReturnsExistingRegisteredWorktree() async throws {
+    let tmpRoot = FileManager.default.temporaryDirectory
+        .appendingPathComponent("existing-wt-\(UUID().uuidString)", isDirectory: true).path
+    let managedRoot = tmpRoot + "/managed"
+    let worktreesDir = managedRoot + "/worktrees"
+    let worktreePath = worktreesDir + "/o-r-pr1"
+    try FileManager.default.createDirectory(atPath: worktreePath, withIntermediateDirectories: true)
+
+    let porcelainWithPath = "worktree \(worktreePath)\nHEAD abc123\nbranch refs/heads/main\n"
+    let stub = StubRunner(responses: [
+        (arguments: ["-C", tmpRoot + "/clone", "worktree", "list", "--porcelain"],
+         result: CommandResult(exitCode: 0, standardOutput: porcelainWithPath, standardError: ""))
+    ])
+    let manager = WorktreeManager(runner: stub, gitPath: gitPath, managedRoot: managedRoot)
+
+    let result = try await manager.createWorktree(clonePath: tmpRoot + "/clone", owner: "o", repo: "r", number: 1)
+    #expect(result == worktreePath)
 }

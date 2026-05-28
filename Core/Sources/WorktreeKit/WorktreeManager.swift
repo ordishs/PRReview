@@ -31,7 +31,15 @@ public struct WorktreeManager: Sendable {
         let worktreesDir = managedRoot + "/worktrees"
         let worktreePath = worktreesDir + "/" + owner + "-" + repo + "-pr" + String(number)
         if FileManager.default.fileExists(atPath: worktreePath) {
-            return worktreePath
+            let listing = try await runGit(["-C", clonePath, "worktree", "list", "--porcelain"])
+            if listing.contains("worktree \(worktreePath)\n") || listing.contains("worktree \(worktreePath)") {
+                return worktreePath
+            }
+            throw WorktreeError.gitFailed(
+                arguments: ["worktree", "validate", worktreePath],
+                exitCode: 1,
+                message: "directory exists but is not a registered git worktree: \(worktreePath). Remove it with: rm -rf '\(worktreePath)'"
+            )
         }
         try await runGit(["-C", clonePath, "fetch", remoteName, "refs/pull/\(number)/head"])
         let sha = try await runGit(["-C", clonePath, "rev-parse", "FETCH_HEAD"]).trimmingCharacters(in: .whitespacesAndNewlines)
