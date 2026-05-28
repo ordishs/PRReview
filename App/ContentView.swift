@@ -15,6 +15,9 @@ struct ContentView: View {
                     Text("\(review.owner)/\(review.repo) · \(review.author)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    Text(relativeDateLabel(for: review.addedAt))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
                 .contextMenu {
                     Button(role: .destructive) {
@@ -67,4 +70,15 @@ struct ContentView: View {
             model.prefetch(for: review)
         }
     }
+}
+
+private func relativeDateLabel(for date: Date) -> String {
+    let calendar = Calendar.current
+    let now = Date()
+    if calendar.isDateInToday(date) { return "Today" }
+    if calendar.isDateInYesterday(date) { return "Yesterday" }
+    let daysAgo = calendar.dateComponents([.day], from: date, to: now).day ?? 0
+    if daysAgo < 7 { return "This Week" }
+    if daysAgo < 14 { return "Last Week" }
+    return "Older"
 }
