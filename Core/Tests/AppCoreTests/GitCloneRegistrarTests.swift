@@ -9,14 +9,37 @@ private actor StubRunner: CommandRunner {
     func run(executable: String, arguments: [String]) async throws -> CommandResult { result }
 }
 
+private func remoteListing(_ entries: [(name: String, url: String)]) -> String {
+    var lines: [String] = []
+    for entry in entries {
+        lines.append("\(entry.name)\t\(entry.url) (fetch)")
+        lines.append("\(entry.name)\t\(entry.url) (push)")
+    }
+    return lines.joined(separator: "\n") + "\n"
+}
+
 @Test func validateSucceedsWhenOriginMatches() async throws {
-    let runner = StubRunner(result: CommandResult(exitCode: 0, standardOutput: "https://github.com/bsv-blockchain/teranode.git\n", standardError: ""))
+    let stdout = remoteListing([(name: "origin", url: "https://github.com/bsv-blockchain/teranode.git")])
+    let runner = StubRunner(result: CommandResult(exitCode: 0, standardOutput: stdout, standardError: ""))
     let registrar = GitCloneRegistrar(runner: runner, gitPath: "git")
     try await registrar.validate(localPath: "/some/path", expectedOwner: "bsv-blockchain", expectedRepo: "teranode")
 }
 
-@Test func validateThrowsOnOriginMismatch() async {
-    let runner = StubRunner(result: CommandResult(exitCode: 0, standardOutput: "https://github.com/other-org/other-repo.git\n", standardError: ""))
+@Test func validateSucceedsWhenForkOriginAndUpstreamMatches() async throws {
+    let stdout = remoteListing([
+        (name: "origin", url: "git@github.com:ordishs/teranode.git"),
+        (name: "upstream", url: "https://github.com/bsv-blockchain/teranode.git"),
+    ])
+    let runner = StubRunner(result: CommandResult(exitCode: 0, standardOutput: stdout, standardError: ""))
+    let registrar = GitCloneRegistrar(runner: runner, gitPath: "git")
+    try await registrar.validate(localPath: "/some/path", expectedOwner: "bsv-blockchain", expectedRepo: "teranode")
+}
+
+@Test func validateThrowsWhenNoRemoteMatches() async {
+    let stdout = remoteListing([
+        (name: "origin", url: "https://github.com/other-org/other-repo.git"),
+    ])
+    let runner = StubRunner(result: CommandResult(exitCode: 0, standardOutput: stdout, standardError: ""))
     let registrar = GitCloneRegistrar(runner: runner, gitPath: "git")
     await #expect(throws: RegistrationError.self) {
         try await registrar.validate(localPath: "/some/path", expectedOwner: "bsv-blockchain", expectedRepo: "teranode")

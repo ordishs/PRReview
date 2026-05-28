@@ -27,8 +27,8 @@ public struct WorktreeManager: Sendable {
         return clonePath
     }
 
-    public func createWorktree(clonePath: String, owner: String, repo: String, number: Int) async throws -> String {
-        try await runGit(["-C", clonePath, "fetch", "origin", "refs/pull/\(number)/head"])
+    public func createWorktree(clonePath: String, owner: String, repo: String, number: Int, remoteName: String = "origin") async throws -> String {
+        try await runGit(["-C", clonePath, "fetch", remoteName, "refs/pull/\(number)/head"])
         let sha = try await runGit(["-C", clonePath, "rev-parse", "FETCH_HEAD"]).trimmingCharacters(in: .whitespacesAndNewlines)
         let worktreesDir = managedRoot + "/worktrees"
         let worktreePath = worktreesDir + "/" + owner + "-" + repo + "-pr" + String(number)
@@ -43,6 +43,25 @@ public struct WorktreeManager: Sendable {
 
     public func removeWorktree(clonePath: String, worktreePath: String) async throws {
         try await runGit(["-C", clonePath, "worktree", "remove", worktreePath])
+    }
+
+    public func listRemotes(clonePath: String) async throws -> [(name: String, url: String)] {
+        let result = try await runner.run(executable: gitPath, arguments: ["-C", clonePath, "remote", "-v"])
+        guard result.exitCode == 0 else {
+            throw WorktreeError.gitFailed(arguments: ["-C", clonePath, "remote", "-v"], exitCode: result.exitCode, message: result.standardError)
+        }
+        var remotes: [(name: String, url: String)] = []
+        var seen: Set<String> = []
+        for line in result.standardOutput.split(separator: "\n") {
+            let parts = line.split(separator: "\t", maxSplits: 1).map(String.init)
+            guard parts.count == 2 else { continue }
+            let name = parts[0]
+            if seen.contains(name) { continue }
+            seen.insert(name)
+            let urlPart = parts[1].split(separator: " ").first.map(String.init) ?? parts[1]
+            remotes.append((name: name, url: urlPart))
+        }
+        return remotes
     }
 
     @discardableResult

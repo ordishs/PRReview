@@ -20,6 +20,19 @@ public struct WorktreeDiffLoader: DiffLoading {
             remoteURL: remoteURL,
             registeredClonePath: registeredClonePath
         )
+
+        let remoteName: String
+        if registeredClonePath != nil {
+            let remotes = try await worktreeManager.listRemotes(clonePath: clonePath)
+            let target = "\(review.owner)/\(review.repo)".lowercased()
+            remoteName = remotes.first { entry in
+                guard let (owner, repo) = GitOriginParser.parse(entry.url) else { return false }
+                return "\(owner)/\(repo)".lowercased() == target
+            }?.name ?? "origin"
+        } else {
+            remoteName = "origin"
+        }
+
         let worktreePath: String
         if let existing = review.worktreePath, FileManager.default.fileExists(atPath: existing) {
             worktreePath = existing
@@ -28,10 +41,11 @@ public struct WorktreeDiffLoader: DiffLoading {
                 clonePath: clonePath,
                 owner: review.owner,
                 repo: review.repo,
-                number: review.number
+                number: review.number,
+                remoteName: remoteName
             )
         }
-        let base = try await worktreeManager.mergeBase(worktreePath: worktreePath, baseRef: "origin/\(review.baseBranch)")
+        let base = try await worktreeManager.mergeBase(worktreePath: worktreePath, baseRef: "\(remoteName)/\(review.baseBranch)")
         let files = try await diffService.diff(worktreePath: worktreePath, baseRef: base)
         return DiffResult(worktreePath: worktreePath, files: files)
     }
