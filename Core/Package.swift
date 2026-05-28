@@ -42,5 +42,6 @@ let package = Package(
         .testTarget(name: "WorktreeKitTests", dependencies: ["WorktreeKit", "CommandSupport"]),
         .testTarget(name: "AppCoreTests", dependencies: ["AppCore", "PRReviewModels", "ReviewStore", "GitHubKit", "CommandSupport", "DiffKit", "ClaudeSessionKit"]),
         .testTarget(name: "DiffKitTests", dependencies: ["DiffKit", "CommandSupport"]),
+        .testTarget(name: "ClaudeSessionKitTests", dependencies: ["ClaudeSessionKit"]),
     ]
 )
