@@ -18,10 +18,11 @@ public enum AppModelFactory {
 
         let client = GitHubClient(runner: ProcessCommandRunner(), ghPath: ghPath)
         let worktreeManager = WorktreeManager(runner: ProcessCommandRunner(), gitPath: gitPath, managedRoot: settings.managedRoot)
+        let worktreeProvider = WorktreeProvider(worktreeManager: worktreeManager)
         let diffService = DiffService(runner: ProcessCommandRunner(), gitPath: gitPath)
-        let diffLoader = WorktreeDiffLoader(worktreeManager: worktreeManager, diffService: diffService)
+        let diffLoader = WorktreeDiffLoader(worktreeProvider: worktreeProvider, worktreeManager: worktreeManager, diffService: diffService)
         let cloneRegistrar = GitCloneRegistrar(runner: ProcessCommandRunner(), gitPath: gitPath)
 
-        return AppModel(store: store, client: client, diffLoader: diffLoader, cloneRegistrar: cloneRegistrar)
+        return AppModel(store: store, client: client, diffLoader: diffLoader, worktreeProvider: worktreeProvider, cloneRegistrar: cloneRegistrar)
     }
 }

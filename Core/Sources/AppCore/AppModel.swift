@@ -17,12 +17,14 @@ public final class AppModel {
     private let store: ReviewStore
     private let client: GitHubClient
     private let diffLoader: DiffLoading
+    private let worktreeProvider: WorktreeProviding
     private let cloneRegistrar: CloneRegistering
 
-    public init(store: ReviewStore, client: GitHubClient, diffLoader: DiffLoading, cloneRegistrar: CloneRegistering) {
+    public init(store: ReviewStore, client: GitHubClient, diffLoader: DiffLoading, worktreeProvider: WorktreeProviding, cloneRegistrar: CloneRegistering) {
         self.store = store
         self.client = client
         self.diffLoader = diffLoader
+        self.worktreeProvider = worktreeProvider
         self.cloneRegistrar = cloneRegistrar
     }
 

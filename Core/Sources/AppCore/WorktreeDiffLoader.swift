@@ -4,50 +4,21 @@ import WorktreeKit
 import DiffKit
 
 public struct WorktreeDiffLoader: DiffLoading {
+    private let worktreeProvider: WorktreeProviding
     private let worktreeManager: WorktreeManager
     private let diffService: DiffService
 
-    public init(worktreeManager: WorktreeManager, diffService: DiffService) {
+    public init(worktreeProvider: WorktreeProviding, worktreeManager: WorktreeManager, diffService: DiffService) {
+        self.worktreeProvider = worktreeProvider
         self.worktreeManager = worktreeManager
         self.diffService = diffService
     }
 
     public func loadDiff(for review: Review, registeredClonePath: String?) async throws -> DiffResult {
-        let remoteURL = "https://github.com/\(review.owner)/\(review.repo).git"
-        let clonePath = try await worktreeManager.resolveClone(
-            owner: review.owner,
-            repo: review.repo,
-            remoteURL: remoteURL,
-            registeredClonePath: registeredClonePath
-        )
-
-        let remoteName: String
-        if registeredClonePath != nil {
-            let remotes = try await worktreeManager.listRemotes(clonePath: clonePath)
-            let target = "\(review.owner)/\(review.repo)".lowercased()
-            remoteName = remotes.first { entry in
-                guard let (owner, repo) = GitOriginParser.parse(entry.url) else { return false }
-                return "\(owner)/\(repo)".lowercased() == target
-            }?.name ?? "origin"
-        } else {
-            remoteName = "origin"
-        }
-
-        let worktreePath: String
-        if let existing = review.worktreePath, FileManager.default.fileExists(atPath: existing) {
-            worktreePath = existing
-        } else {
-            worktreePath = try await worktreeManager.createWorktree(
-                clonePath: clonePath,
-                owner: review.owner,
-                repo: review.repo,
-                number: review.number,
-                remoteName: remoteName
-            )
-        }
-        try await worktreeManager.fetch(clonePath: clonePath, remoteName: remoteName, ref: review.baseBranch)
-        let base = try await worktreeManager.mergeBase(worktreePath: worktreePath, baseRef: "\(remoteName)/\(review.baseBranch)")
-        let files = try await diffService.diff(worktreePath: worktreePath, baseRef: base)
-        return DiffResult(worktreePath: worktreePath, files: files)
+        let ready = try await worktreeProvider.ensureWorktree(for: review, registeredClonePath: registeredClonePath)
+        try await worktreeManager.fetch(clonePath: ready.clonePath, remoteName: ready.remoteName, ref: review.baseBranch)
+        let base = try await worktreeManager.mergeBase(worktreePath: ready.worktreePath, baseRef: "\(ready.remoteName)/\(review.baseBranch)")
+        let files = try await diffService.diff(worktreePath: ready.worktreePath, baseRef: base)
+        return DiffResult(worktreePath: ready.worktreePath, files: files)
     }
 }
