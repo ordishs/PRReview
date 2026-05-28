@@ -1,6 +1,7 @@
 import SwiftUI
 import PRReviewModels
 import AppCore
+import ClaudeSessionKit
 
 struct ContentView: View {
     @Bindable var model: AppModel
@@ -9,15 +10,20 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             List(model.reviews, selection: $model.selection) { review in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("#\(review.number) · \(review.title)")
-                        .lineLimit(1)
-                    Text("\(review.owner)/\(review.repo) · \(review.author)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(relativeDateLabel(for: review.addedAt))
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                HStack(alignment: .center, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("#\(review.number) · \(review.title)")
+                            .lineLimit(1)
+                        Text("\(review.owner)/\(review.repo) · \(review.author)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(relativeDateLabel(for: review.addedAt))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer()
+                    StatusDot(status: model.claudeStatuses[review.id])
+                        .help(statusTooltip(model.claudeStatuses[review.id]))
                 }
                 .contextMenu {
                     Button(role: .destructive) {
@@ -69,6 +75,54 @@ struct ContentView: View {
                   let review = model.reviews.first(where: { $0.id == id }) else { return }
             model.prefetch(for: review)
         }
+    }
+}
+
+private struct StatusDot: View {
+    let status: ClaudeStatus?
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+    }
+
+    private var color: Color {
+        switch status {
+        case .working:
+            return .blue
+        case .idle:
+            return .gray
+        case .ready(let code):
+            return code == 0 ? .green : .orange
+        case .failed:
+            return .red
+        case .starting, nil:
+            return .clear
+        }
+    }
+}
+
+private func statusTooltip(_ status: ClaudeStatus?) -> String {
+    switch status {
+    case .working:
+        return "Working"
+    case .idle(let since, let snippet):
+        let elapsed = Int(Date().timeIntervalSince(since))
+        let mins = max(elapsed / 60, 0)
+        let base = mins > 0 ? "Idle \(mins)m" : "Idle"
+        if let snippet, !snippet.isEmpty {
+            return "\(base) · \(snippet)"
+        }
+        return base
+    case .ready(let code):
+        return code == 0 ? "Review ready" : "Exited · code \(code)"
+    case .failed(let reason):
+        return reason
+    case .starting:
+        return "Starting…"
+    case nil:
+        return ""
     }
 }
 
