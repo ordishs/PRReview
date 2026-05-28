@@ -5,17 +5,20 @@ public final class TranscriptWatcher {
     private let transcriptDir: URL
     private var directorySource: DispatchSourceFileSystemObject?
     private var fileSource: DispatchSourceFileSystemObject?
-    private var currentFileFD: Int32 = -1
     private var currentFileURL: URL?
     private var readOffset: Int = 0
     private var onEvent: (@MainActor (Date, String?) -> Void)?
     private let isoFormatter: ISO8601DateFormatter
+    private let isoFormatterNoFrac: ISO8601DateFormatter
 
     public init(transcriptDir: URL) {
         self.transcriptDir = transcriptDir
         let fmt = ISO8601DateFormatter()
         fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         self.isoFormatter = fmt
+        let fmt2 = ISO8601DateFormatter()
+        fmt2.formatOptions = [.withInternetDateTime]
+        self.isoFormatterNoFrac = fmt2
     }
 
     public func start(onEvent: @escaping @MainActor (Date, String?) -> Void) {
@@ -33,7 +36,6 @@ public final class TranscriptWatcher {
         directorySource = nil
         fileSource?.cancel()
         fileSource = nil
-        currentFileFD = -1
         currentFileURL = nil
         readOffset = 0
         onEvent = nil
@@ -83,10 +85,8 @@ public final class TranscriptWatcher {
     private func attachFileSource(_ url: URL) {
         fileSource?.cancel()
         fileSource = nil
-        currentFileFD = -1
         let fd = open(url.path, O_EVTONLY)
         guard fd >= 0 else { return }
-        currentFileFD = fd
         currentFileURL = url
         readOffset = 0
         let source = DispatchSource.makeFileSystemObjectSource(
@@ -129,7 +129,8 @@ public final class TranscriptWatcher {
             let timestamp: String?
         }
         guard let event = try? JSONDecoder().decode(MinimalEvent.self, from: data) else { return }
-        guard let ts = event.timestamp, let date = isoFormatter.date(from: ts) else { return }
+        guard let ts = event.timestamp else { return }
+        guard let date = isoFormatter.date(from: ts) ?? isoFormatterNoFrac.date(from: ts) else { return }
         let snippet = extractSnippet(from: data, type: event.type)
         onEvent?(date, snippet)
     }
