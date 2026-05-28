@@ -153,30 +153,32 @@ public final class AppModel {
             return
         }
         claudePaneState[review.id] = .preparingWorktree
+        let ready: WorktreeReady
         do {
-            let ready = try await worktreeProvider.ensureWorktree(
+            ready = try await worktreeProvider.ensureWorktree(
                 for: review,
                 registeredClonePath: registeredClonePath(for: review)
             )
-            if review.worktreePath != ready.worktreePath {
-                var updated = review
-                updated.worktreePath = ready.worktreePath
-                try await store.upsert(updated)
-                reviews = await store.allReviews()
-            }
-            let spec = ClaudeLaunchBuilder.build(
-                settings: .default,
-                review: review,
-                worktreePath: ready.worktreePath,
-                resolvedClaudePath: claudePath
-            )
-            let session = ClaudeSession(spec: spec)
-            claudeSessions[review.id] = session
-            claudePaneState[review.id] = .sessionLive
-            session.start()
         } catch {
             claudePaneState[review.id] = .worktreeFailed(String(describing: error))
+            return
         }
+        if review.worktreePath != ready.worktreePath {
+            var updated = review
+            updated.worktreePath = ready.worktreePath
+            try? await store.upsert(updated)
+            reviews = await store.allReviews()
+        }
+        let spec = ClaudeLaunchBuilder.build(
+            settings: .default,
+            review: review,
+            worktreePath: ready.worktreePath,
+            resolvedClaudePath: claudePath
+        )
+        let session = ClaudeSession(spec: spec)
+        claudeSessions[review.id] = session
+        claudePaneState[review.id] = .sessionLive
+        session.start()
     }
 
     public func terminateClaudeSession(for id: String) {
