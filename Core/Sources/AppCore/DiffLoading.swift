@@ -19,5 +19,5 @@ public struct DiffResult: Sendable, Equatable {
 }
 
 public protocol DiffLoading: Sendable {
-    func loadDiff(for review: Review) async throws -> DiffResult
+    func loadDiff(for review: Review, registeredClonePath: String?) async throws -> DiffResult
 }

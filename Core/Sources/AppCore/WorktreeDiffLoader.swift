@@ -12,13 +12,13 @@ public struct WorktreeDiffLoader: DiffLoading {
         self.diffService = diffService
     }
 
-    public func loadDiff(for review: Review) async throws -> DiffResult {
+    public func loadDiff(for review: Review, registeredClonePath: String?) async throws -> DiffResult {
         let remoteURL = "https://github.com/\(review.owner)/\(review.repo).git"
         let clonePath = try await worktreeManager.resolveClone(
             owner: review.owner,
             repo: review.repo,
             remoteURL: remoteURL,
-            registeredClonePath: nil
+            registeredClonePath: registeredClonePath
         )
         let worktreePath: String
         if let existing = review.worktreePath, FileManager.default.fileExists(atPath: existing) {
