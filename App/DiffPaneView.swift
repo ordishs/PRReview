@@ -14,7 +14,7 @@ struct DiffPaneView: View {
                 Divider()
             }
             Group {
-                switch model.diffState {
+                switch model.diffStates[review.id] ?? .idle {
                 case .idle, .loading:
                     VStack(spacing: 10) {
                         ProgressView()

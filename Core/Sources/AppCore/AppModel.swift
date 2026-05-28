@@ -19,7 +19,7 @@ public final class AppModel {
     public var selection: String?
     public private(set) var errorMessage: String?
     public private(set) var isAdding = false
-    public private(set) var diffState: DiffLoadState = .idle
+    public private(set) var diffStates: [String: DiffLoadState] = [:]
     public private(set) var registeredRepos: [RegisteredRepo] = []
     public private(set) var claudeSessions: [String: ClaudeSession] = [:]
     public private(set) var claudePaneState: [String: ClaudePaneState] = [:]
@@ -117,6 +117,7 @@ public final class AppModel {
     public func removeReview(id: String) async {
         guard let review = reviews.first(where: { $0.id == id }) else { return }
         terminateClaudeSession(for: id)
+        diffStates.removeValue(forKey: id)
         if let worktreePath = review.worktreePath, FileManager.default.fileExists(atPath: worktreePath) {
             try? FileManager.default.removeItem(atPath: worktreePath)
         }
@@ -133,12 +134,12 @@ public final class AppModel {
     }
 
     public func loadDiff(for review: Review) async {
-        diffState = .loading
+        diffStates[review.id] = .loading
         do {
             let result = try await diffLoader.loadDiff(for: review, registeredClonePath: registeredClonePath(for: review))
             if review.worktreePath != result.worktreePath {
                 guard reviews.contains(where: { $0.id == review.id }) else {
-                    diffState = .loaded(result.files)
+                    diffStates[review.id] = .loaded(result.files)
                     return
                 }
                 var updated = review
@@ -146,9 +147,9 @@ public final class AppModel {
                 try await store.upsert(updated)
                 reviews = await store.allReviews()
             }
-            diffState = .loaded(result.files)
+            diffStates[review.id] = .loaded(result.files)
         } catch {
-            diffState = .failed(String(describing: error))
+            diffStates[review.id] = .failed(String(describing: error))
         }
     }
 

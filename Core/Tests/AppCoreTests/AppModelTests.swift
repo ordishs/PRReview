@@ -157,7 +157,7 @@ private func stubClient() -> GitHubClient {
 
     await model.loadDiff(for: sampleReview())
 
-    #expect(model.diffState == .loaded([file]))
+    #expect(model.diffStates[sampleReview().id] == .loaded([file]))
 }
 
 @Test @MainActor func loadDiffSetsFailedStateOnError() async throws {
@@ -166,9 +166,9 @@ private func stubClient() -> GitHubClient {
 
     await model.loadDiff(for: sampleReview())
 
-    if case .failed = model.diffState {
+    if case .failed = model.diffStates[sampleReview().id] {
     } else {
-        Issue.record("expected .failed, got \(model.diffState)")
+        Issue.record("expected .failed, got \(String(describing: model.diffStates[sampleReview().id]))")
     }
 }
 
