@@ -11,6 +11,7 @@ public final class ClaudeSession {
     public let terminalView: LocalProcessTerminalView
 
     private let delegateBridge: DelegateBridge
+    private let scrollMonitorBox: ScrollMonitorBox
 
     public init(spec: ClaudeLaunchSpec) {
         self.spec = spec
@@ -18,11 +19,30 @@ public final class ClaudeSession {
         self.terminalView = view
         let bridge = DelegateBridge()
         self.delegateBridge = bridge
+        let box = ScrollMonitorBox()
+        self.scrollMonitorBox = box
         view.processDelegate = bridge
         bridge.onExit = { [weak self] code in
             Task { @MainActor [weak self] in
                 self?.state = .exited(code: code)
             }
+        }
+        box.monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak view] event in
+            guard let view, event.deltaY != 0 else { return event }
+            guard view.window?.firstResponder === view else { return event }
+            guard view.terminal.isCurrentBufferAlternate else { return event }
+            let delta = Int(abs(event.deltaY))
+            let velocity: Int
+            if delta > 9 { velocity = 3 }
+            else if delta > 5 { velocity = 2 }
+            else { velocity = 1 }
+            let arrowSeq = event.deltaY > 0
+                ? (view.terminal.applicationCursor ? EscapeSequences.moveUpApp   : EscapeSequences.moveUpNormal)
+                : (view.terminal.applicationCursor ? EscapeSequences.moveDownApp : EscapeSequences.moveDownNormal)
+            for _ in 0 ..< velocity {
+                view.send(arrowSeq)
+            }
+            return nil
         }
     }
 
@@ -81,5 +101,15 @@ private final class DelegateBridge: NSObject, LocalProcessTerminalViewDelegate {
     func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
     func processTerminated(source: TerminalView, exitCode: Int32?) {
         onExit?(exitCode ?? -1)
+    }
+}
+
+private final class ScrollMonitorBox {
+    var monitor: Any?
+
+    deinit {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+        }
     }
 }
