@@ -3,6 +3,14 @@ import Observation
 import PRReviewModels
 import ReviewStore
 import GitHubKit
+import ClaudeSessionKit
+
+public enum ClaudePaneState: Sendable, Equatable {
+    case idle
+    case preparingWorktree
+    case worktreeFailed(String)
+    case sessionLive
+}
 
 @MainActor
 @Observable
@@ -13,19 +21,30 @@ public final class AppModel {
     public private(set) var isAdding = false
     public private(set) var diffState: DiffLoadState = .idle
     public private(set) var registeredRepos: [RegisteredRepo] = []
+    public private(set) var claudeSessions: [String: ClaudeSession] = [:]
+    public private(set) var claudePaneState: [String: ClaudePaneState] = [:]
 
     private let store: ReviewStore
     private let client: GitHubClient
     private let diffLoader: DiffLoading
     private let worktreeProvider: WorktreeProviding
     private let cloneRegistrar: CloneRegistering
+    private let claudePath: String
 
-    public init(store: ReviewStore, client: GitHubClient, diffLoader: DiffLoading, worktreeProvider: WorktreeProviding, cloneRegistrar: CloneRegistering) {
+    public init(
+        store: ReviewStore,
+        client: GitHubClient,
+        diffLoader: DiffLoading,
+        worktreeProvider: WorktreeProviding,
+        cloneRegistrar: CloneRegistering,
+        claudePath: String
+    ) {
         self.store = store
         self.client = client
         self.diffLoader = diffLoader
         self.worktreeProvider = worktreeProvider
         self.cloneRegistrar = cloneRegistrar
+        self.claudePath = claudePath
     }
 
     public func load() async {
@@ -96,6 +115,7 @@ public final class AppModel {
 
     public func removeReview(id: String) async {
         guard let review = reviews.first(where: { $0.id == id }) else { return }
+        terminateClaudeSession(for: id)
         if let worktreePath = review.worktreePath, FileManager.default.fileExists(atPath: worktreePath) {
             try? FileManager.default.removeItem(atPath: worktreePath)
         }
@@ -125,6 +145,50 @@ public final class AppModel {
         } catch {
             diffState = .failed(String(describing: error))
         }
+    }
+
+    public func ensureClaudeSession(for review: Review) async {
+        if claudeSessions[review.id] != nil {
+            claudePaneState[review.id] = .sessionLive
+            return
+        }
+        claudePaneState[review.id] = .preparingWorktree
+        do {
+            let ready = try await worktreeProvider.ensureWorktree(
+                for: review,
+                registeredClonePath: registeredClonePath(for: review)
+            )
+            if review.worktreePath != ready.worktreePath {
+                var updated = review
+                updated.worktreePath = ready.worktreePath
+                try await store.upsert(updated)
+                reviews = await store.allReviews()
+            }
+            let spec = ClaudeLaunchBuilder.build(
+                settings: .default,
+                review: review,
+                worktreePath: ready.worktreePath,
+                resolvedClaudePath: claudePath
+            )
+            let session = ClaudeSession(spec: spec)
+            claudeSessions[review.id] = session
+            claudePaneState[review.id] = .sessionLive
+            session.start()
+        } catch {
+            claudePaneState[review.id] = .worktreeFailed(String(describing: error))
+        }
+    }
+
+    public func terminateClaudeSession(for id: String) {
+        claudeSessions[id]?.terminate()
+        claudeSessions.removeValue(forKey: id)
+        claudePaneState.removeValue(forKey: id)
+    }
+
+    public func terminateAllClaudeSessions() {
+        for session in claudeSessions.values { session.terminate() }
+        claudeSessions.removeAll()
+        claudePaneState.removeAll()
     }
 
     public func selectedReview() -> Review? {

@@ -15,6 +15,7 @@ public enum AppModelFactory {
 
         let ghPath = settings.ghPath ?? ToolResolver.resolve("gh") ?? "/opt/homebrew/bin/gh"
         let gitPath = settings.gitPath ?? ToolResolver.resolve("git") ?? "/opt/homebrew/bin/git"
+        let claudePath = settings.claudePath ?? ToolResolver.resolve("claude") ?? "/opt/homebrew/bin/claude"
 
         let client = GitHubClient(runner: ProcessCommandRunner(), ghPath: ghPath)
         let worktreeManager = WorktreeManager(runner: ProcessCommandRunner(), gitPath: gitPath, managedRoot: settings.managedRoot)
@@ -23,6 +24,13 @@ public enum AppModelFactory {
         let diffLoader = WorktreeDiffLoader(worktreeProvider: worktreeProvider, worktreeManager: worktreeManager, diffService: diffService)
         let cloneRegistrar = GitCloneRegistrar(runner: ProcessCommandRunner(), gitPath: gitPath)
 
-        return AppModel(store: store, client: client, diffLoader: diffLoader, worktreeProvider: worktreeProvider, cloneRegistrar: cloneRegistrar)
+        return AppModel(
+            store: store,
+            client: client,
+            diffLoader: diffLoader,
+            worktreeProvider: worktreeProvider,
+            cloneRegistrar: cloneRegistrar,
+            claudePath: claudePath
+        )
     }
 }
