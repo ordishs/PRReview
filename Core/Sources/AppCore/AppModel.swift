@@ -405,6 +405,12 @@ public final class AppModel {
         Task { await loadDiff(for: review) }
     }
 
+    public func prewarmDiffs() {
+        for review in reviews where !review.disabled {
+            Task(priority: .background) { await loadDiff(for: review) }
+        }
+    }
+
     public func selectedReview() -> Review? {
         guard let selection else { return nil }
         return reviews.first { $0.id == selection }

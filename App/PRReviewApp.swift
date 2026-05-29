@@ -32,6 +32,10 @@ struct PRReviewApp: App {
                     let created = try AppModelFactory.makeDefault()
                     await created.load()
                     created.startDiscoveryPolling()
+                    created.prewarmDiffs()
+                    for review in created.reviews where !review.disabled {
+                        _ = webViewCache.ensure(for: review)
+                    }
                     model = created
                     appDelegate.model = created
                 } catch {
