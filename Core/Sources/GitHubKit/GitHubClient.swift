@@ -60,6 +60,80 @@ public struct GitHubClient: Sendable {
     }
 }
 
+public struct DiscoveryHit: Sendable, Equatable {
+    public let owner: String
+    public let repo: String
+    public let number: Int
+    public let title: String
+    public let url: String
+    public let authorLogin: String
+    public let state: String
+    public let isDraft: Bool
+
+    public var id: String { "\(owner)/\(repo)#\(number)" }
+    public var ref: PRRef { PRRef(owner: owner, repo: repo, number: number) }
+
+    public init(owner: String, repo: String, number: Int, title: String, url: String, authorLogin: String, state: String, isDraft: Bool) {
+        self.owner = owner
+        self.repo = repo
+        self.number = number
+        self.title = title
+        self.url = url
+        self.authorLogin = authorLogin
+        self.state = state
+        self.isDraft = isDraft
+    }
+}
+
+private struct GHSearchHit: Decodable {
+    struct Author: Decodable { let login: String }
+    struct Repository: Decodable { let nameWithOwner: String }
+    let number: Int
+    let title: String
+    let url: String
+    let state: String
+    let isDraft: Bool
+    let author: Author
+    let repository: Repository
+}
+
+extension GitHubClient {
+    public func searchPRs(query: String) async throws -> [DiscoveryHit] {
+        let fields = "number,title,url,state,isDraft,author,repository"
+        let result = try await runner.run(
+            executable: ghPath,
+            arguments: ["search", "prs", query, "--json", fields, "--limit", "100"]
+        )
+        guard result.exitCode == 0 else {
+            throw GitHubError.commandFailed(exitCode: result.exitCode, message: result.standardError)
+        }
+        let raw: [GHSearchHit]
+        do {
+            raw = try JSONDecoder().decode([GHSearchHit].self, from: Data(result.standardOutput.utf8))
+        } catch {
+            throw GitHubError.decodingFailed(String(describing: error))
+        }
+        return raw.compactMap { row -> DiscoveryHit? in
+            let parts = row.repository.nameWithOwner.split(separator: "/", maxSplits: 1).map(String.init)
+            guard parts.count == 2 else { return nil }
+            return DiscoveryHit(
+                owner: parts[0],
+                repo: parts[1],
+                number: row.number,
+                title: row.title,
+                url: row.url,
+                authorLogin: row.author.login,
+                state: row.state,
+                isDraft: row.isDraft
+            )
+        }
+    }
+
+    public static func mapDiscoveryState(state: String, isDraft: Bool) -> PRState {
+        mapState(state: state.uppercased(), isDraft: isDraft)
+    }
+}
+
 struct GHPullRequest: Decodable {
     struct Author: Decodable {
         let login: String
