@@ -25,15 +25,7 @@ struct DetailView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .padding(8)
-            Button("Show Claude Review") { pane = .claude }
-                .keyboardShortcut("1", modifiers: [.command])
-                .hidden()
-            Button("Show GitHub") { pane = .github }
-                .keyboardShortcut("2", modifiers: [.command])
-                .hidden()
-            Button("Show Diff") { pane = .diff }
-                .keyboardShortcut("3", modifiers: [.command])
-                .hidden()
+            .background { paneShortcuts }
             Divider()
             switch pane {
             case .github:
@@ -48,5 +40,17 @@ struct DetailView: View {
             }
         }
         .navigationTitle("#\(review.number) \(review.title)")
+    }
+
+    private var paneShortcuts: some View {
+        ZStack {
+            Button("") { pane = .claude }
+                .keyboardShortcut("1", modifiers: .command)
+            Button("") { pane = .github }
+                .keyboardShortcut("2", modifiers: .command)
+            Button("") { pane = .diff }
+                .keyboardShortcut("3", modifiers: .command)
+        }
+        .opacity(0)
     }
 }
