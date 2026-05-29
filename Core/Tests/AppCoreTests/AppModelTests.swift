@@ -10,9 +10,28 @@ import WorktreeKit
 import ClaudeSessionKit
 
 private actor StubRunner: CommandRunner {
-    let result: CommandResult
-    init(result: CommandResult) { self.result = result }
-    func run(executable: String, arguments: [String]) async throws -> CommandResult { result }
+    private var results: [CommandResult]
+    private let fallback: CommandResult?
+
+    init(result: CommandResult) {
+        self.results = []
+        self.fallback = result
+    }
+
+    init(results: [CommandResult]) {
+        self.results = results
+        self.fallback = nil
+    }
+
+    func run(executable: String, arguments: [String]) async throws -> CommandResult {
+        if !results.isEmpty {
+            return results.removeFirst()
+        }
+        if let fallback {
+            return fallback
+        }
+        throw NSError(domain: "StubRunner", code: -1, userInfo: [NSLocalizedDescriptionKey: "queue exhausted"])
+    }
 }
 
 private func tempStoreURL() -> URL {
@@ -444,4 +463,177 @@ private func stubClient() -> GitHubClient {
     let posted = await poster.posted
     #expect(posted.count == 1)
     #expect(posted.first?.reviewID == review.id)
+}
+
+private let sampleSearchHitJSON = """
+[
+  {
+    "number": 944,
+    "title": "centrifuge fix",
+    "url": "https://github.com/bsv-blockchain/teranode/pull/944",
+    "state": "open",
+    "isDraft": false,
+    "author": { "login": "icellan" },
+    "repository": { "nameWithOwner": "bsv-blockchain/teranode" }
+  }
+]
+"""
+
+private let sampleMergedSearchHitJSON = """
+[
+  {
+    "number": 944,
+    "title": "centrifuge fix",
+    "url": "https://github.com/bsv-blockchain/teranode/pull/944",
+    "state": "merged",
+    "isDraft": false,
+    "author": { "login": "icellan" },
+    "repository": { "nameWithOwner": "bsv-blockchain/teranode" }
+  }
+]
+"""
+
+private let emptySearchJSON = "[]"
+
+private let prFetchJSON = """
+{
+  "number": 944,
+  "title": "centrifuge fix",
+  "url": "https://github.com/bsv-blockchain/teranode/pull/944",
+  "state": "OPEN",
+  "isDraft": false,
+  "author": { "login": "icellan" },
+  "headRefName": "fix/centrifuge",
+  "baseRefName": "main",
+  "closingIssuesReferences": []
+}
+"""
+
+@Test @MainActor func discoverNowPopulatesNewReviews() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let runner = StubRunner(results: [
+        CommandResult(exitCode: 0, standardOutput: sampleSearchHitJSON, standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: emptySearchJSON, standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: prFetchJSON, standardError: "")
+    ])
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+    let model = AppModel(
+        store: store,
+        client: client,
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    await model.discoverNow()
+
+    #expect(model.reviews.count == 1)
+    #expect(model.reviews.first?.id == "bsv-blockchain/teranode#944")
+    #expect(model.reviews.first?.origin == .discovered)
+}
+
+@Test @MainActor func discoverNowPromotesAddedToBoth() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    try await store.upsert(sampleReview())
+    let runner = StubRunner(results: [
+        CommandResult(exitCode: 0, standardOutput: sampleSearchHitJSON, standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: emptySearchJSON, standardError: "")
+    ])
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+    let model = AppModel(
+        store: store,
+        client: client,
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    await model.discoverNow()
+
+    #expect(model.reviews.count == 1)
+    #expect(model.reviews.first?.origin == .both)
+}
+
+@Test @MainActor func discoverNowKeepsPRsFallingOutOfQuery() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    var existing = sampleReview()
+    existing.origin = .discovered
+    try await store.upsert(existing)
+    let runner = StubRunner(results: [
+        CommandResult(exitCode: 0, standardOutput: emptySearchJSON, standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: emptySearchJSON, standardError: "")
+    ])
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+    let model = AppModel(
+        store: store,
+        client: client,
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    await model.discoverNow()
+
+    #expect(model.reviews.count == 1)
+    #expect(model.reviews.first?.id == "bsv-blockchain/teranode#944")
+}
+
+@Test @MainActor func discoverNowUpdatesPRState() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    var existing = sampleReview()
+    existing.prState = .open
+    existing.origin = .discovered
+    try await store.upsert(existing)
+    let runner = StubRunner(results: [
+        CommandResult(exitCode: 0, standardOutput: sampleMergedSearchHitJSON, standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: emptySearchJSON, standardError: "")
+    ])
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+    let model = AppModel(
+        store: store,
+        client: client,
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    await model.discoverNow()
+
+    #expect(model.reviews.first?.prState == .merged)
+}
+
+@Test @MainActor func discoverNowDeduplicatesAcrossQueries() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let runner = StubRunner(results: [
+        CommandResult(exitCode: 0, standardOutput: sampleSearchHitJSON, standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: sampleSearchHitJSON, standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: prFetchJSON, standardError: "")
+    ])
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+    let model = AppModel(
+        store: store,
+        client: client,
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    await model.discoverNow()
+
+    #expect(model.reviews.count == 1)
 }

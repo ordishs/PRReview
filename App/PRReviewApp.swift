@@ -30,6 +30,7 @@ struct PRReviewApp: App {
                 do {
                     let created = try AppModelFactory.makeDefault()
                     await created.load()
+                    created.startDiscoveryPolling()
                     model = created
                     appDelegate.model = created
                 } catch {

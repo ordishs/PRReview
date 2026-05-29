@@ -30,6 +30,7 @@ public final class AppModel {
     private var lastVerdictSnippet: [String: String] = [:]
     private var notifiedIdleForSession: Set<String> = []
     private var tickTask: Task<Void, Never>?
+    private var discoveryTask: Task<Void, Never>?
     private static let tickIntervalNanoseconds: UInt64 = 5_000_000_000
 
     private let store: ReviewStore
@@ -82,6 +83,47 @@ public final class AppModel {
         for id in claudeSessions.keys {
             recomputeStatus(for: id, now: now)
         }
+    }
+
+    public func startDiscoveryPolling() {
+        guard discoveryTask == nil else { return }
+        discoveryTask = Task { @MainActor in
+            await self.discoverNow()
+            let intervalNs = UInt64(Settings.default.pollIntervalSeconds) * 1_000_000_000
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: intervalNs)
+                await self.discoverNow()
+            }
+        }
+    }
+
+    func discoverNow() async {
+        let queries = Settings.default.discoveryQueries
+        var hitsByID: [String: DiscoveryHit] = [:]
+        for query in queries {
+            guard let results = try? await client.searchPRs(query: query) else { continue }
+            for hit in results {
+                hitsByID[hit.id] = hit
+            }
+        }
+        await mergeDiscoveryHits(Array(hitsByID.values))
+    }
+
+    private func mergeDiscoveryHits(_ hits: [DiscoveryHit]) async {
+        let existingByID = Dictionary(reviews.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for hit in hits {
+            if let existing = existingByID[hit.id] {
+                var updated = existing
+                updated.title = hit.title
+                updated.prState = GitHubClient.mapDiscoveryState(state: hit.state, isDraft: hit.isDraft)
+                if existing.origin == .added { updated.origin = .both }
+                try? await store.upsert(updated)
+            } else {
+                guard let fresh = try? await client.fetchReview(for: hit.ref, origin: .discovered) else { continue }
+                try? await store.upsert(fresh)
+            }
+        }
+        reviews = await store.allReviews()
     }
 
     public func addPR(urlString: String) async {
@@ -299,6 +341,8 @@ public final class AppModel {
     public func terminateAllClaudeSessions() {
         tickTask?.cancel()
         tickTask = nil
+        discoveryTask?.cancel()
+        discoveryTask = nil
         for session in claudeSessions.values { session.terminate() }
         for watcher in transcriptWatchers.values { watcher.stop() }
         claudeSessions.removeAll()
