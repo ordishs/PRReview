@@ -637,3 +637,48 @@ private let prFetchJSON = """
 
     #expect(model.reviews.count == 1)
 }
+
+@Test @MainActor func setDiffModePersists() async throws {
+    let url = tempStoreURL()
+    let store = try ReviewStore(fileURL: url)
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+    #expect(model.diffMode == .unified)
+
+    await model.setDiffMode(.split)
+
+    #expect(model.diffMode == .split)
+    let reloaded = try ReviewStore(fileURL: url)
+    let settings = await reloaded.settings()
+    #expect(settings.diffMode == .split)
+}
+
+@Test @MainActor func loadReadsPersistedDiffMode() async throws {
+    let url = tempStoreURL()
+    let seedStore = try ReviewStore(fileURL: url)
+    var seedSettings = Settings.default
+    seedSettings.diffMode = .split
+    try await seedStore.updateSettings(seedSettings)
+    let store = try ReviewStore(fileURL: url)
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+
+    await model.load()
+
+    #expect(model.diffMode == .split)
+}

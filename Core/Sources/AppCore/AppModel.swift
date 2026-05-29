@@ -24,6 +24,7 @@ public final class AppModel {
     public private(set) var claudeSessions: [String: ClaudeSession] = [:]
     public private(set) var claudePaneState: [String: ClaudePaneState] = [:]
     public private(set) var claudeStatuses: [String: ClaudeStatus] = [:]
+    public private(set) var diffMode: DiffMode = .unified
 
     private var transcriptWatchers: [String: TranscriptWatcher] = [:]
     private var lastEventAt: [String: Date] = [:]
@@ -65,6 +66,8 @@ public final class AppModel {
     public func load() async {
         reviews = await store.allReviews()
         registeredRepos = await store.allRepos()
+        let settings = await store.settings()
+        diffMode = settings.diffMode
         startTickTimerIfNeeded()
     }
 
@@ -372,5 +375,16 @@ public final class AppModel {
 
     public func dismissError() {
         errorMessage = nil
+    }
+
+    public func setDiffMode(_ mode: DiffMode) async {
+        do {
+            var current = await store.settings()
+            current.diffMode = mode
+            try await store.updateSettings(current)
+            diffMode = mode
+        } catch {
+            errorMessage = String(describing: error)
+        }
     }
 }
