@@ -420,11 +420,16 @@ public final class AppModel {
     }
 
     public func updateSettings(_ newSettings: Settings) async {
+        let queriesChanged = settings.discoveryQueries != newSettings.discoveryQueries
         do {
             try await store.updateSettings(newSettings)
             settings = newSettings
         } catch {
             errorMessage = String(describing: error)
+            return
+        }
+        if queriesChanged {
+            Task { await self.discoverNow() }
         }
     }
 }

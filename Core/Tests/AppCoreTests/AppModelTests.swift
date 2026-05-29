@@ -816,3 +816,60 @@ private let prFetchJSON = """
     let firstCall = args.first ?? []
     #expect(firstCall.contains("custom:query"))
 }
+
+@Test @MainActor func updateSettingsTriggersPollWhenQueriesChange() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let runner = StubRunner(results: [
+        CommandResult(exitCode: 0, standardOutput: "[]", standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: "[]", standardError: "")
+    ])
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+    let model = AppModel(
+        store: store,
+        client: client,
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    var updated = model.settings
+    updated.discoveryQueries = ["custom:newquery is:open"]
+    await model.updateSettings(updated)
+
+    try await Task.sleep(nanoseconds: 250_000_000)
+
+    let args = await runner.recordedArguments
+    let containsNewQuery = args.contains { call in
+        call.contains("custom:newquery")
+    }
+    #expect(containsNewQuery)
+}
+
+@Test @MainActor func updateSettingsDoesNotPollWhenQueriesUnchanged() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let runner = StubRunner(result: CommandResult(exitCode: 0, standardOutput: "[]", standardError: ""))
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+    let model = AppModel(
+        store: store,
+        client: client,
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    var updated = model.settings
+    updated.pollIntervalSeconds = 60
+    await model.updateSettings(updated)
+
+    try await Task.sleep(nanoseconds: 150_000_000)
+
+    let args = await runner.recordedArguments
+    let searchCallCount = args.filter { $0.first == "search" }.count
+    #expect(searchCallCount == 0)
+}
