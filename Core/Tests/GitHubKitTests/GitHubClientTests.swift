@@ -20,6 +20,33 @@ private actor RecordingRunner: CommandRunner {
     }
 }
 
+private actor QueuedRunner: CommandRunner {
+    private var results: [CommandResult]
+    private(set) var allArguments: [[String]] = []
+
+    init(_ results: [CommandResult]) {
+        self.results = results
+    }
+
+    func run(executable: String, arguments: [String]) async throws -> CommandResult {
+        allArguments.append(arguments)
+        return results.isEmpty ? CommandResult(exitCode: 0, standardOutput: "[]", standardError: "") : results.removeFirst()
+    }
+}
+
+private let unknownFieldStderr = """
+Unknown JSON field: "closingIssuesReferences"
+Available fields:
+  number
+  title
+  url
+  state
+  isDraft
+  author
+  headRefName
+  baseRefName
+"""
+
 private let samplePRJSON = """
 {
   "number": 944,
@@ -113,6 +140,40 @@ private let samplePRJSONWithClosingIssue = """
     let review = try await client.fetchReview(for: ref)
 
     #expect(review.closingIssueNumber == 123)
+}
+
+@Test func fetchReviewRetriesWithoutClosingIssuesOnOlderGh() async throws {
+    let runner = QueuedRunner([
+        CommandResult(exitCode: 1, standardOutput: "", standardError: unknownFieldStderr),
+        CommandResult(exitCode: 0, standardOutput: samplePRJSON, standardError: ""),
+    ])
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+    let ref = PRRef(owner: "bsv-blockchain", repo: "teranode", number: 944)
+
+    let review = try await client.fetchReview(for: ref)
+
+    #expect(review.number == 944)
+    #expect(review.closingIssueNumber == nil)
+
+    let calls = await runner.allArguments
+    #expect(calls.count == 2)
+    #expect(calls[0].last == "number,title,url,state,isDraft,author,headRefName,baseRefName,closingIssuesReferences")
+    #expect(calls[1].last == "number,title,url,state,isDraft,author,headRefName,baseRefName")
+}
+
+@Test func fetchReviewDoesNotRetryOnUnrelatedError() async {
+    let runner = QueuedRunner([
+        CommandResult(exitCode: 1, standardOutput: "", standardError: "no pull requests found"),
+    ])
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+    let ref = PRRef(owner: "bsv-blockchain", repo: "teranode", number: 944)
+
+    await #expect(throws: GitHubError.self) {
+        try await client.fetchReview(for: ref)
+    }
+
+    let calls = await runner.allArguments
+    #expect(calls.count == 1)
 }
 
 private let sampleSearchJSON = """

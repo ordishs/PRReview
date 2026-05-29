@@ -12,11 +12,19 @@ public struct GitHubClient: Sendable {
     }
 
     public func fetchReview(for ref: PRRef, origin: ReviewOrigin = .added, now: Date = Date()) async throws -> Review {
-        let fields = "number,title,url,state,isDraft,author,headRefName,baseRefName,closingIssuesReferences"
-        let result = try await runner.run(
+        let coreFields = "number,title,url,state,isDraft,author,headRefName,baseRefName"
+        var result = try await runner.run(
             executable: ghPath,
-            arguments: ["pr", "view", String(ref.number), "--repo", "\(ref.owner)/\(ref.repo)", "--json", fields]
+            arguments: prViewArguments(ref: ref, fields: coreFields + ",closingIssuesReferences")
         )
+        if result.exitCode != 0, result.standardError.contains("Unknown JSON field") {
+            // Older gh (< the release that added closingIssuesReferences) rejects the
+            // field. It only feeds the cosmetic closingIssueNumber, so retry without it.
+            result = try await runner.run(
+                executable: ghPath,
+                arguments: prViewArguments(ref: ref, fields: coreFields)
+            )
+        }
         guard result.exitCode == 0 else {
             throw GitHubError.commandFailed(exitCode: result.exitCode, message: result.standardError)
         }
@@ -44,6 +52,10 @@ public struct GitHubClient: Sendable {
             addedAt: now,
             closingIssueNumber: closingIssueNumber
         )
+    }
+
+    private func prViewArguments(ref: PRRef, fields: String) -> [String] {
+        ["pr", "view", String(ref.number), "--repo", "\(ref.owner)/\(ref.repo)", "--json", fields]
     }
 
     static func mapState(state: String, isDraft: Bool) -> PRState {
