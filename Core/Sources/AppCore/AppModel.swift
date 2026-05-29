@@ -68,6 +68,13 @@ public final class AppModel {
         reviews = await store.allReviews()
         registeredRepos = await store.allRepos()
         settings = await store.settings()
+        if selection == nil {
+            selection = reviews
+                .sorted { (a, b) in
+                    (a.lastOpenedAt ?? a.addedAt) > (b.lastOpenedAt ?? b.addedAt)
+                }
+                .first?.id
+        }
         startTickTimerIfNeeded()
     }
 
@@ -400,6 +407,17 @@ public final class AppModel {
 
     public func dismissError() {
         errorMessage = nil
+    }
+
+    public func markReviewOpened(_ id: String) async {
+        guard var review = reviews.first(where: { $0.id == id }) else { return }
+        review.lastOpenedAt = Date()
+        do {
+            try await store.upsert(review)
+            reviews = await store.allReviews()
+        } catch {
+            errorMessage = String(describing: error)
+        }
     }
 
     public func setReviewDisabled(_ disabled: Bool, for id: String) async {

@@ -48,3 +48,24 @@ import Foundation
     let decoded = try JSONDecoder().decode(Review.self, from: Data(json.utf8))
     #expect(decoded.disabled == true)
 }
+
+@Test func settingsDefaultsSidebarGroupingToNone() throws {
+    let s = Settings.default
+    #expect(s.sidebarGrouping == .none)
+}
+
+@Test func settingsDecodesPersistedSettingsWithoutSidebarGrouping() throws {
+    let json = """
+    {
+      "managedRoot": "/tmp",
+      "discoveryQueries": ["review-requested:@me is:open"],
+      "pollIntervalSeconds": 120,
+      "claudeLaunchArgs": [],
+      "notificationsEnabled": true,
+      "diffMode": "unified",
+      "diffIgnoreWhitespace": false
+    }
+    """
+    let decoded = try JSONDecoder().decode(Settings.self, from: Data(json.utf8))
+    #expect(decoded.sidebarGrouping == .none)
+}

@@ -11,6 +11,7 @@ public struct Settings: Codable, Sendable, Equatable {
     public var notificationsEnabled: Bool
     public var diffMode: DiffMode
     public var diffIgnoreWhitespace: Bool
+    public var sidebarGrouping: SidebarGrouping
 
     public init(
         managedRoot: String,
@@ -22,7 +23,8 @@ public struct Settings: Codable, Sendable, Equatable {
         claudeLaunchArgs: [String],
         notificationsEnabled: Bool,
         diffMode: DiffMode,
-        diffIgnoreWhitespace: Bool
+        diffIgnoreWhitespace: Bool,
+        sidebarGrouping: SidebarGrouping = .none
     ) {
         self.managedRoot = managedRoot
         self.discoveryQueries = discoveryQueries
@@ -34,6 +36,22 @@ public struct Settings: Codable, Sendable, Equatable {
         self.notificationsEnabled = notificationsEnabled
         self.diffMode = diffMode
         self.diffIgnoreWhitespace = diffIgnoreWhitespace
+        self.sidebarGrouping = sidebarGrouping
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        managedRoot = try c.decode(String.self, forKey: .managedRoot)
+        discoveryQueries = try c.decode([String].self, forKey: .discoveryQueries)
+        pollIntervalSeconds = try c.decode(Int.self, forKey: .pollIntervalSeconds)
+        ghPath = try c.decodeIfPresent(String.self, forKey: .ghPath)
+        gitPath = try c.decodeIfPresent(String.self, forKey: .gitPath)
+        claudePath = try c.decodeIfPresent(String.self, forKey: .claudePath)
+        claudeLaunchArgs = try c.decode([String].self, forKey: .claudeLaunchArgs)
+        notificationsEnabled = try c.decode(Bool.self, forKey: .notificationsEnabled)
+        diffMode = try c.decode(DiffMode.self, forKey: .diffMode)
+        diffIgnoreWhitespace = try c.decode(Bool.self, forKey: .diffIgnoreWhitespace)
+        sidebarGrouping = try c.decodeIfPresent(SidebarGrouping.self, forKey: .sidebarGrouping) ?? .none
     }
 
     public static let `default` = Settings(
@@ -43,7 +61,8 @@ public struct Settings: Codable, Sendable, Equatable {
         claudeLaunchArgs: [],
         notificationsEnabled: true,
         diffMode: .unified,
-        diffIgnoreWhitespace: false
+        diffIgnoreWhitespace: false,
+        sidebarGrouping: .none
     )
 
     public static func defaultManagedRoot() -> String {

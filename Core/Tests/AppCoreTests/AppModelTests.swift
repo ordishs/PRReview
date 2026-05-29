@@ -848,6 +848,58 @@ private let prFetchJSON = """
     #expect(containsNewQuery)
 }
 
+@Test @MainActor func markReviewOpenedPersistsTimestamp() async throws {
+    let url = tempStoreURL()
+    let store = try ReviewStore(fileURL: url)
+    try await store.upsert(sampleReview())
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+    let id = sampleReview().id
+
+    await model.markReviewOpened(id)
+
+    let reloaded = try ReviewStore(fileURL: url)
+    let persisted = await reloaded.allReviews().first
+    #expect(persisted?.lastOpenedAt != nil)
+}
+
+@Test @MainActor func loadAutoSelectsMostRecentlyOpenedReview() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    var first = sampleReview()
+    first.lastOpenedAt = Date(timeIntervalSince1970: 1_000_000)
+    var second = Review(
+        owner: "other", repo: "repo", number: 1,
+        url: URL(string: "https://github.com/other/repo/pull/1")!,
+        title: "second", author: "bob",
+        headBranch: "f", baseBranch: "main",
+        origin: .added, prState: .open, addedAt: Date()
+    )
+    second.lastOpenedAt = Date(timeIntervalSince1970: 2_000_000)
+    try await store.upsert(first)
+    try await store.upsert(second)
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+
+    await model.load()
+
+    #expect(model.selection == second.id)
+}
+
 @Test @MainActor func updateSettingsDoesNotPollWhenQueriesUnchanged() async throws {
     let store = try ReviewStore(fileURL: tempStoreURL())
     let runner = StubRunner(result: CommandResult(exitCode: 0, standardOutput: "[]", standardError: ""))

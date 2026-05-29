@@ -10,34 +10,21 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(model.reviews, selection: $model.selection) { review in
-                HStack(alignment: .center, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("#\(review.number) · \(review.title)")
-                            .lineLimit(1)
-                        Text("\(review.owner)/\(review.repo) · \(review.author)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(relativeDateLabel(for: review.addedAt))
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+            Group {
+                if model.settings.sidebarGrouping == .none {
+                    List(model.reviews.sorted { $0.addedAt > $1.addedAt }, selection: $model.selection) { review in
+                        sidebarRow(for: review)
                     }
-                    Spacer()
-                    StatusDot(status: model.claudeStatuses[review.id])
-                        .help(statusTooltip(model.claudeStatuses[review.id]))
-                }
-                .opacity(review.disabled ? 0.45 : 1.0)
-                .contextMenu {
-                    Button {
-                        Task { await model.setReviewDisabled(!review.disabled, for: review.id) }
-                    } label: {
-                        Label(review.disabled ? "Enable" : "Disable", systemImage: review.disabled ? "play.circle" : "pause.circle")
-                    }
-                    Divider()
-                    Button(role: .destructive) {
-                        Task { await model.removeReview(id: review.id) }
-                    } label: {
-                        Label("Remove from List", systemImage: "trash")
+                } else {
+                    List(selection: $model.selection) {
+                        ForEach(groupedReviews(), id: \.title) { group in
+                            Section(group.title) {
+                                ForEach(group.reviews) { review in
+                                    sidebarRow(for: review)
+                                        .tag(review.id as String?)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -83,7 +70,100 @@ struct ContentView: View {
                   let review = model.reviews.first(where: { $0.id == id }) else { return }
             model.prefetch(for: review)
             _ = webViewCache.ensure(for: review)
+            Task { await model.markReviewOpened(id) }
         }
+    }
+
+    @ViewBuilder
+    private func sidebarRow(for review: Review) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("#\(review.number) · \(review.title)")
+                    .lineLimit(1)
+                Text("\(review.owner)/\(review.repo) · \(review.author)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(relativeDateLabel(for: review.addedAt))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+            StatusDot(status: model.claudeStatuses[review.id])
+                .help(statusTooltip(model.claudeStatuses[review.id]))
+        }
+        .opacity(review.disabled ? 0.45 : 1.0)
+        .contextMenu {
+            Button {
+                Task { await model.setReviewDisabled(!review.disabled, for: review.id) }
+            } label: {
+                Label(review.disabled ? "Enable" : "Disable", systemImage: review.disabled ? "play.circle" : "pause.circle")
+            }
+            Divider()
+            Button(role: .destructive) {
+                Task { await model.removeReview(id: review.id) }
+            } label: {
+                Label("Remove from List", systemImage: "trash")
+            }
+        }
+    }
+
+    private struct ReviewGroup: Identifiable {
+        let title: String
+        let reviews: [Review]
+        var id: String { title }
+    }
+
+    private func groupedReviews() -> [ReviewGroup] {
+        switch model.settings.sidebarGrouping {
+        case .none:
+            return [ReviewGroup(title: "", reviews: model.reviews.sorted { $0.addedAt > $1.addedAt })]
+        case .byDate:
+            return groupByDate()
+        case .byAuthor:
+            return groupByAuthor()
+        case .byStatus:
+            return groupByStatus()
+        }
+    }
+
+    private func groupByDate() -> [ReviewGroup] {
+        let buckets: [(String, (Review) -> Bool)] = [
+            ("Today", { Calendar.current.isDateInToday($0.addedAt) }),
+            ("Yesterday", { Calendar.current.isDateInYesterday($0.addedAt) }),
+            ("This Week", { daysAgo($0.addedAt) < 7 }),
+            ("Last Week", { daysAgo($0.addedAt) < 14 }),
+            ("Older", { _ in true })
+        ]
+        var remaining = model.reviews
+        var groups: [ReviewGroup] = []
+        for (title, predicate) in buckets {
+            let (match, rest) = remaining.partitioned(by: predicate)
+            if !match.isEmpty {
+                groups.append(ReviewGroup(title: title, reviews: match.sorted { $0.addedAt > $1.addedAt }))
+            }
+            remaining = rest
+        }
+        return groups
+    }
+
+    private func groupByAuthor() -> [ReviewGroup] {
+        let byAuthor = Dictionary(grouping: model.reviews) { $0.author }
+        return byAuthor.keys.sorted().map { author in
+            ReviewGroup(title: author, reviews: byAuthor[author]!.sorted { $0.addedAt > $1.addedAt })
+        }
+    }
+
+    private func groupByStatus() -> [ReviewGroup] {
+        let order: [(PRState, String)] = [(.open, "Open"), (.draft, "Draft"), (.merged, "Merged"), (.closed, "Closed")]
+        return order.compactMap { (state, title) in
+            let matching = model.reviews.filter { $0.prState == state }
+            guard !matching.isEmpty else { return nil }
+            return ReviewGroup(title: title, reviews: matching.sorted { $0.addedAt > $1.addedAt })
+        }
+    }
+
+    private func daysAgo(_ date: Date) -> Int {
+        Calendar.current.dateComponents([.day], from: date, to: Date()).day ?? 0
     }
 }
 
@@ -144,4 +224,19 @@ private func relativeDateLabel(for date: Date) -> String {
     if daysAgo < 7 { return "This Week" }
     if daysAgo < 14 { return "Last Week" }
     return "Older"
+}
+
+private extension Array {
+    func partitioned(by predicate: (Element) -> Bool) -> (matching: [Element], rest: [Element]) {
+        var matching: [Element] = []
+        var rest: [Element] = []
+        for element in self {
+            if predicate(element) {
+                matching.append(element)
+            } else {
+                rest.append(element)
+            }
+        }
+        return (matching, rest)
+    }
 }
