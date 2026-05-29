@@ -247,7 +247,10 @@ public final class AppModel {
         }
     }
 
-    public func loadDiff(for review: Review) async {
+    public func loadDiff(for review: Review, force: Bool = false) async {
+        if !force, case .loaded = diffStates[review.id] {
+            return
+        }
         diffStates[review.id] = .loading
         do {
             let result = try await diffLoader.loadDiff(for: review, registeredClonePath: registeredClonePath(for: review))

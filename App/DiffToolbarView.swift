@@ -31,6 +31,14 @@ struct DiffToolbarView: View {
             }
             .font(.callout.monospacedDigit())
 
+            Button(action: {
+                Task { await model.loadDiff(for: review, force: true) }
+            }) {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .help("Refresh diff")
+
             Spacer()
 
             if let path = model.registeredClonePath(for: review) {

@@ -84,7 +84,9 @@ private struct StubRegistrar: CloneRegistering {
 
 private actor RecordingDiffLoader: DiffLoading {
     private(set) var lastRegisteredClonePath: String?
+    private(set) var callCount: Int = 0
     func loadDiff(for review: Review, registeredClonePath: String?) async throws -> DiffResult {
+        callCount += 1
         lastRegisteredClonePath = registeredClonePath
         return DiffResult(worktreePath: "/tmp/wt", files: [])
     }
@@ -924,4 +926,51 @@ private let prFetchJSON = """
     let args = await runner.recordedArguments
     let searchCallCount = args.filter { $0.first == "search" }.count
     #expect(searchCallCount == 0)
+}
+
+@Test @MainActor func loadDiffSkipsRunWhenAlreadyLoaded() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let recorder = RecordingDiffLoader()
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: recorder,
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+    let review = sampleReview()
+
+    await model.loadDiff(for: review)
+    let firstCount = await recorder.callCount
+
+    await model.loadDiff(for: review)
+    let secondCount = await recorder.callCount
+
+    #expect(firstCount == 1)
+    #expect(secondCount == 1)
+}
+
+@Test @MainActor func loadDiffForceReruns() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    let recorder = RecordingDiffLoader()
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: recorder,
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+    let review = sampleReview()
+
+    await model.loadDiff(for: review)
+    await model.loadDiff(for: review, force: true)
+
+    let count = await recorder.callCount
+    #expect(count == 2)
 }
