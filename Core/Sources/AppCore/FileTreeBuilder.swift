@@ -96,7 +96,7 @@ private struct MutableNode {
 
     func toNode() -> FileTreeNode {
         FileTreeNode(
-            id: path.isEmpty ? "/" : path,
+            id: "node:" + (path.isEmpty ? "/" : path),
             name: name,
             fileID: fileID,
             addedCount: addedCount,
