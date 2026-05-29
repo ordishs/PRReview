@@ -48,5 +48,14 @@ struct PRReviewApp: App {
                 .disabled(model == nil)
             }
         }
+
+        Settings {
+            if let model {
+                SettingsView(model: model)
+            } else {
+                Text("Loading…")
+                    .frame(width: 540, height: 360)
+            }
+        }
     }
 }
