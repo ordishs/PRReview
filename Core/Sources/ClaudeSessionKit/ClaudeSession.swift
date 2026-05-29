@@ -27,9 +27,11 @@ public final class ClaudeSession {
     }
 
     public func start() {
-        guard FileManager.default.isExecutableFile(atPath: spec.executable) else {
-            state = .failedToLaunch("claude not found at \(spec.executable)")
-            return
+        if spec.executable.hasPrefix("/") {
+            guard FileManager.default.isExecutableFile(atPath: spec.executable) else {
+                state = .failedToLaunch("claude not found at \(spec.executable)")
+                return
+            }
         }
         state = .starting
         let shellCommand = makeShellCommand()

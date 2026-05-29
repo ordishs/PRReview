@@ -15,7 +15,7 @@ public enum AppModelFactory {
 
         let ghPath = settings.ghPath ?? ToolResolver.resolve("gh") ?? "/opt/homebrew/bin/gh"
         let gitPath = settings.gitPath ?? ToolResolver.resolve("git") ?? "/opt/homebrew/bin/git"
-        let claudePath = settings.claudePath ?? ToolResolver.resolve("claude") ?? "/opt/homebrew/bin/claude"
+        let claudePath = settings.claudePath ?? "claude"
 
         let client = GitHubClient(runner: ProcessCommandRunner(), ghPath: ghPath)
         let worktreeManager = WorktreeManager(runner: ProcessCommandRunner(), gitPath: gitPath, managedRoot: settings.managedRoot)
