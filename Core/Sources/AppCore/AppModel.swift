@@ -24,7 +24,8 @@ public final class AppModel {
     public private(set) var claudeSessions: [String: ClaudeSession] = [:]
     public private(set) var claudePaneState: [String: ClaudePaneState] = [:]
     public private(set) var claudeStatuses: [String: ClaudeStatus] = [:]
-    public private(set) var diffMode: DiffMode = .unified
+    public private(set) var settings: Settings = .default
+    public var diffMode: DiffMode { settings.diffMode }
 
     private var transcriptWatchers: [String: TranscriptWatcher] = [:]
     private var lastEventAt: [String: Date] = [:]
@@ -66,8 +67,7 @@ public final class AppModel {
     public func load() async {
         reviews = await store.allReviews()
         registeredRepos = await store.allRepos()
-        let settings = await store.settings()
-        diffMode = settings.diffMode
+        settings = await store.settings()
         startTickTimerIfNeeded()
     }
 
@@ -92,8 +92,8 @@ public final class AppModel {
         guard discoveryTask == nil else { return }
         discoveryTask = Task { @MainActor in
             await self.discoverNow()
-            let intervalNs = UInt64(Settings.default.pollIntervalSeconds) * 1_000_000_000
             while !Task.isCancelled {
+                let intervalNs = UInt64(self.settings.pollIntervalSeconds) * 1_000_000_000
                 try? await Task.sleep(nanoseconds: intervalNs)
                 await self.discoverNow()
             }
@@ -101,7 +101,7 @@ public final class AppModel {
     }
 
     func discoverNow() async {
-        let queries = Settings.default.discoveryQueries
+        let queries = settings.discoveryQueries
         var hitsByID: [String: DiscoveryHit] = [:]
         var anyQuerySucceeded = false
         for query in queries {
@@ -288,7 +288,7 @@ public final class AppModel {
             reviews = await store.allReviews()
         }
         let spec = ClaudeLaunchBuilder.build(
-            settings: .default,
+            settings: settings,
             review: review,
             worktreePath: ready.worktreePath,
             resolvedClaudePath: claudePath
@@ -402,11 +402,15 @@ public final class AppModel {
     }
 
     public func setDiffMode(_ mode: DiffMode) async {
+        var updated = settings
+        updated.diffMode = mode
+        await updateSettings(updated)
+    }
+
+    public func updateSettings(_ newSettings: Settings) async {
         do {
-            var current = await store.settings()
-            current.diffMode = mode
-            try await store.updateSettings(current)
-            diffMode = mode
+            try await store.updateSettings(newSettings)
+            settings = newSettings
         } catch {
             errorMessage = String(describing: error)
         }

@@ -12,6 +12,7 @@ import ClaudeSessionKit
 private actor StubRunner: CommandRunner {
     private var results: [CommandResult]
     private let fallback: CommandResult?
+    private(set) var recordedArguments: [[String]] = []
 
     init(result: CommandResult) {
         self.results = []
@@ -24,6 +25,7 @@ private actor StubRunner: CommandRunner {
     }
 
     func run(executable: String, arguments: [String]) async throws -> CommandResult {
+        recordedArguments.append(arguments)
         if !results.isEmpty {
             return results.removeFirst()
         }
@@ -681,4 +683,87 @@ private let prFetchJSON = """
     await model.load()
 
     #expect(model.diffMode == .split)
+}
+
+@Test @MainActor func loadReadsAllPersistedSettings() async throws {
+    let url = tempStoreURL()
+    let seedStore = try ReviewStore(fileURL: url)
+    var seed = Settings.default
+    seed.discoveryQueries = ["author:@me"]
+    seed.pollIntervalSeconds = 240
+    seed.claudeLaunchArgs = ["--model", "opus"]
+    seed.notificationsEnabled = false
+    try await seedStore.updateSettings(seed)
+    let store = try ReviewStore(fileURL: url)
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+
+    await model.load()
+
+    #expect(model.settings.discoveryQueries == ["author:@me"])
+    #expect(model.settings.pollIntervalSeconds == 240)
+    #expect(model.settings.claudeLaunchArgs == ["--model", "opus"])
+    #expect(model.settings.notificationsEnabled == false)
+}
+
+@Test @MainActor func updateSettingsPersistsAndUpdatesInMemory() async throws {
+    let url = tempStoreURL()
+    let store = try ReviewStore(fileURL: url)
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    var newSettings = model.settings
+    newSettings.discoveryQueries = ["assignee:foo is:open"]
+    newSettings.pollIntervalSeconds = 300
+    await model.updateSettings(newSettings)
+
+    #expect(model.settings.discoveryQueries == ["assignee:foo is:open"])
+    #expect(model.settings.pollIntervalSeconds == 300)
+
+    let reloaded = try ReviewStore(fileURL: url)
+    let persisted = await reloaded.settings()
+    #expect(persisted.discoveryQueries == ["assignee:foo is:open"])
+    #expect(persisted.pollIntervalSeconds == 300)
+}
+
+@Test @MainActor func discoverNowUsesCurrentSettingsQueries() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    var seed = Settings.default
+    seed.discoveryQueries = ["custom:query"]
+    try await store.updateSettings(seed)
+    let runner = StubRunner(results: [
+        CommandResult(exitCode: 0, standardOutput: "[]", standardError: "")
+    ])
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+    let model = AppModel(
+        store: store,
+        client: client,
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    await model.discoverNow()
+
+    let args = await runner.recordedArguments
+    let firstCall = args.first ?? []
+    #expect(firstCall.contains("custom:query"))
 }
