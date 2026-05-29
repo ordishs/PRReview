@@ -14,7 +14,7 @@ public final class ClaudeSession {
 
     public init(spec: ClaudeLaunchSpec) {
         self.spec = spec
-        let view = LocalProcessTerminalView(frame: .zero)
+        let view = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         self.terminalView = view
         let bridge = DelegateBridge()
         self.delegateBridge = bridge
