@@ -21,6 +21,23 @@ private actor StubRunner: CommandRunner {
     }
 }
 
+private actor QueuedStubRunner: CommandRunner {
+    private var queue: [CommandResult]
+    private(set) var recordedArguments: [[String]] = []
+
+    init(scriptedResponses: [CommandResult]) {
+        self.queue = scriptedResponses
+    }
+
+    func run(executable: String, arguments: [String]) async throws -> CommandResult {
+        recordedArguments.append(arguments)
+        guard !queue.isEmpty else {
+            return CommandResult(exitCode: 0, standardOutput: "", standardError: "")
+        }
+        return queue.removeFirst()
+    }
+}
+
 private struct GitFixture {
     let root: String
     let remoteURL: String
@@ -180,4 +197,69 @@ private func makeFixture(prNumber: Int) async throws -> GitFixture {
 
     let result = try await manager.createWorktree(clonePath: tmpRoot + "/clone", owner: "o", repo: "r", number: 1)
     #expect(result == worktreePath)
+}
+
+@Test func refreshWorktreeReturnsFalseWhenHeadsMatch() async throws {
+    let runner = QueuedStubRunner(scriptedResponses: [
+        CommandResult(exitCode: 0, standardOutput: "", standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: "abc123\n", standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: "", standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: "abc123\n", standardError: "")
+    ])
+    let manager = WorktreeManager(runner: runner, gitPath: "git", managedRoot: "/tmp/managed")
+
+    let updated = try await manager.refreshWorktree(
+        clonePath: "/tmp/clone",
+        worktreePath: "/tmp/wt",
+        number: 42,
+        remoteName: "origin"
+    )
+
+    #expect(updated == false)
+}
+
+@Test func refreshWorktreeResetsHeadWhenChanged() async throws {
+    let runner = QueuedStubRunner(scriptedResponses: [
+        CommandResult(exitCode: 0, standardOutput: "", standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: "new789\n", standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: "", standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: "old123\n", standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: "", standardError: "")
+    ])
+    let manager = WorktreeManager(runner: runner, gitPath: "git", managedRoot: "/tmp/managed")
+
+    let updated = try await manager.refreshWorktree(
+        clonePath: "/tmp/clone",
+        worktreePath: "/tmp/wt",
+        number: 42,
+        remoteName: "origin"
+    )
+
+    #expect(updated == true)
+    let args = await runner.recordedArguments
+    #expect(args.contains(["-C", "/tmp/wt", "reset", "--hard", "new789"]))
+}
+
+@Test func refreshWorktreeRefusesToClobberDirtyWorktree() async throws {
+    let runner = QueuedStubRunner(scriptedResponses: [
+        CommandResult(exitCode: 0, standardOutput: "", standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: "new789\n", standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: " M file.txt\n", standardError: ""),
+        CommandResult(exitCode: 0, standardOutput: "old123\n", standardError: "")
+    ])
+    let manager = WorktreeManager(runner: runner, gitPath: "git", managedRoot: "/tmp/managed")
+
+    do {
+        _ = try await manager.refreshWorktree(
+            clonePath: "/tmp/clone",
+            worktreePath: "/tmp/wt",
+            number: 42,
+            remoteName: "origin"
+        )
+        Issue.record("expected throw")
+    } catch let WorktreeError.gitFailed(_, _, message) {
+        #expect(message.contains("uncommitted changes"))
+    } catch {
+        Issue.record("expected WorktreeError.gitFailed, got \(error)")
+    }
 }

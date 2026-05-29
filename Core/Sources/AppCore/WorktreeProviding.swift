@@ -47,6 +47,12 @@ public struct WorktreeProvider: WorktreeProviding {
         let worktreePath: String
         if let existing = review.worktreePath, FileManager.default.fileExists(atPath: existing) {
             worktreePath = existing
+            _ = try await worktreeManager.refreshWorktree(
+                clonePath: clonePath,
+                worktreePath: existing,
+                number: review.number,
+                remoteName: remoteName
+            )
         } else {
             worktreePath = try await worktreeManager.createWorktree(
                 clonePath: clonePath,

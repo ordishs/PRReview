@@ -79,6 +79,32 @@ public struct WorktreeManager: Sendable {
         return remotes
     }
 
+    public func refreshWorktree(
+        clonePath: String,
+        worktreePath: String,
+        number: Int,
+        remoteName: String = "origin"
+    ) async throws -> Bool {
+        try await runGit(["-C", clonePath, "fetch", remoteName, "refs/pull/\(number)/head"])
+        let fetchHead = try await runGit(["-C", clonePath, "rev-parse", "FETCH_HEAD"])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let statusOutput = try await runGit(["-C", worktreePath, "status", "--porcelain"])
+        let worktreeHead = try await runGit(["-C", worktreePath, "rev-parse", "HEAD"])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if fetchHead == worktreeHead {
+            return false
+        }
+        if !statusOutput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw WorktreeError.gitFailed(
+                arguments: ["refresh", "validate"],
+                exitCode: 1,
+                message: "worktree has uncommitted changes; cannot fast-forward to \(fetchHead). Commit or stash your changes first."
+            )
+        }
+        try await runGit(["-C", worktreePath, "reset", "--hard", fetchHead])
+        return true
+    }
+
     @discardableResult
     private func runGit(_ arguments: [String]) async throws -> String {
         let result = try await runner.run(executable: gitPath, arguments: arguments)
