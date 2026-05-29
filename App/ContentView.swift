@@ -78,8 +78,11 @@ struct ContentView: View {
     private func sidebarRow(for review: Review) -> some View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("#\(review.number) · \(review.title)")
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("#\(review.number) · \(review.title)")
+                        .lineLimit(1)
+                    stateBadge(for: review.prState)
+                }
                 Text("\(review.owner)/\(review.repo) · \(review.author)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -164,6 +167,35 @@ struct ContentView: View {
 
     private func daysAgo(_ date: Date) -> Int {
         Calendar.current.dateComponents([.day], from: date, to: Date()).day ?? 0
+    }
+}
+
+@ViewBuilder
+private func stateBadge(for state: PRState) -> some View {
+    switch state {
+    case .open:
+        EmptyView()
+    case .draft:
+        StateBadge(text: "Draft", color: .gray)
+    case .merged:
+        StateBadge(text: "Merged", color: .purple)
+    case .closed:
+        StateBadge(text: "Closed", color: .red)
+    }
+}
+
+private struct StateBadge: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.caption2)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(color.opacity(0.18))
+            .foregroundStyle(color)
+            .clipShape(Capsule())
     }
 }
 
