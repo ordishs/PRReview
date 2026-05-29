@@ -245,7 +245,7 @@ private struct SplitRows: View {
     let lines: [DiffLine]
 
     var body: some View {
-        let pairs = pairLines(lines)
+        let pairs = SplitDiffPairer.pair(lines)
         VStack(spacing: 0) {
             ForEach(Array(pairs.enumerated()), id: \.offset) { _, pair in
                 HStack(spacing: 0) {
@@ -289,36 +289,4 @@ private struct SplitRows: View {
         }
     }
 
-    private struct LinePair {
-        let left: DiffLine?
-        let right: DiffLine?
-    }
-
-    private func pairLines(_ lines: [DiffLine]) -> [LinePair] {
-        var pairs: [LinePair] = []
-        var pending: [DiffLine] = []
-        for line in lines {
-            switch line.kind {
-            case .context:
-                pairs.append(contentsOf: flushPending(pending))
-                pending.removeAll()
-                pairs.append(LinePair(left: line, right: line))
-            case .removed:
-                pending.append(line)
-            case .added:
-                if !pending.isEmpty {
-                    let removed = pending.removeFirst()
-                    pairs.append(LinePair(left: removed, right: line))
-                } else {
-                    pairs.append(LinePair(left: nil, right: line))
-                }
-            }
-        }
-        pairs.append(contentsOf: flushPending(pending))
-        return pairs
-    }
-
-    private func flushPending(_ pending: [DiffLine]) -> [LinePair] {
-        pending.map { LinePair(left: $0, right: nil) }
-    }
 }
