@@ -974,3 +974,70 @@ private let prFetchJSON = """
     let count = await recorder.callCount
     #expect(count == 2)
 }
+
+@Test @MainActor func setFileViewedPersists() async throws {
+    let url = tempStoreURL()
+    let store = try ReviewStore(fileURL: url)
+    try await store.upsert(sampleReview())
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    await model.setFileViewed(true, filePath: "src/foo.swift", reviewID: sampleReview().id)
+
+    #expect(model.reviews.first?.viewedFiles.contains("src/foo.swift") == true)
+    let reloaded = try ReviewStore(fileURL: url)
+    let persisted = await reloaded.allReviews().first
+    #expect(persisted?.viewedFiles.contains("src/foo.swift") == true)
+}
+
+@Test @MainActor func setFileViewedFalseRemovesEntry() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    var seeded = sampleReview()
+    seeded.viewedFiles = ["a.swift", "b.swift"]
+    try await store.upsert(seeded)
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    await model.setFileViewed(false, filePath: "a.swift", reviewID: seeded.id)
+
+    let viewed = model.reviews.first?.viewedFiles ?? []
+    #expect(viewed == ["b.swift"])
+}
+
+@Test @MainActor func setFileViewedNoOpsWhenAlreadyInDesiredState() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    try await store.upsert(sampleReview())
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    await model.setFileViewed(false, filePath: "x.swift", reviewID: sampleReview().id)
+    #expect(model.reviews.first?.viewedFiles.isEmpty == true)
+
+    await model.setFileViewed(true, filePath: "x.swift", reviewID: sampleReview().id)
+    await model.setFileViewed(true, filePath: "x.swift", reviewID: sampleReview().id)
+    #expect(model.reviews.first?.viewedFiles == ["x.swift"])
+}

@@ -19,6 +19,7 @@ public struct Review: Codable, Sendable, Identifiable, Equatable {
     public var lastOpenedAt: Date?
     public var closingIssueNumber: Int?
     public var disabled: Bool
+    public var viewedFiles: [String]
 
     public init(
         owner: String,
@@ -37,7 +38,8 @@ public struct Review: Codable, Sendable, Identifiable, Equatable {
         addedAt: Date,
         lastOpenedAt: Date? = nil,
         closingIssueNumber: Int? = nil,
-        disabled: Bool = false
+        disabled: Bool = false,
+        viewedFiles: [String] = []
     ) {
         self.id = Review.makeID(owner: owner, repo: repo, number: number)
         self.owner = owner
@@ -57,6 +59,7 @@ public struct Review: Codable, Sendable, Identifiable, Equatable {
         self.lastOpenedAt = lastOpenedAt
         self.closingIssueNumber = closingIssueNumber
         self.disabled = disabled
+        self.viewedFiles = viewedFiles
     }
 
     public init(from decoder: Decoder) throws {
@@ -79,6 +82,7 @@ public struct Review: Codable, Sendable, Identifiable, Equatable {
         self.lastOpenedAt = try container.decodeIfPresent(Date.self, forKey: .lastOpenedAt)
         self.closingIssueNumber = try container.decodeIfPresent(Int.self, forKey: .closingIssueNumber)
         self.disabled = try container.decodeIfPresent(Bool.self, forKey: .disabled) ?? false
+        self.viewedFiles = try container.decodeIfPresent([String].self, forKey: .viewedFiles) ?? []
     }
 
     public static func makeID(owner: String, repo: String, number: Int) -> String {

@@ -446,6 +446,23 @@ public final class AppModel {
         }
     }
 
+    public func setFileViewed(_ viewed: Bool, filePath: String, reviewID: String) async {
+        guard var review = reviews.first(where: { $0.id == reviewID }) else { return }
+        let already = review.viewedFiles.contains(filePath)
+        if viewed == already { return }
+        if viewed {
+            review.viewedFiles.append(filePath)
+        } else {
+            review.viewedFiles.removeAll { $0 == filePath }
+        }
+        do {
+            try await store.upsert(review)
+            reviews = await store.allReviews()
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
     public func setDiffMode(_ mode: DiffMode) async {
         var updated = settings
         updated.diffMode = mode

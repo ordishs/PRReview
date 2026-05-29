@@ -55,7 +55,7 @@ struct DiffPaneView: View {
                     }
                     .frame(minWidth: 200, idealWidth: 260, maxWidth: 360)
 
-                    DiffContentView(files: files, mode: model.diffMode)
+                    DiffContentView(model: model, review: review, files: files, mode: model.diffMode)
                 }
             }
         }
@@ -116,6 +116,8 @@ private struct NodeRow: View {
 }
 
 private struct DiffContentView: View {
+    let model: AppModel
+    let review: Review
     let files: [DiffFile]
     let mode: DiffMode
 
@@ -123,8 +125,16 @@ private struct DiffContentView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 ForEach(files) { file in
-                    DiffFileSection(file: file, mode: mode)
-                        .id(file.id)
+                    let isViewed = review.viewedFiles.contains(file.id)
+                    DiffFileSection(
+                        file: file,
+                        mode: mode,
+                        isViewed: isViewed,
+                        onToggleViewed: {
+                            Task { await model.setFileViewed(!isViewed, filePath: file.id, reviewID: review.id) }
+                        }
+                    )
+                    .id(file.id)
                 }
             }
             .padding(12)
@@ -135,17 +145,21 @@ private struct DiffContentView: View {
 private struct DiffFileSection: View {
     let file: DiffFile
     let mode: DiffMode
+    let isViewed: Bool
+    let onToggleViewed: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            ForEach(Array(file.hunks.enumerated()), id: \.offset) { _, hunk in
-                HunkHeaderRow(header: hunk.header)
-                switch mode {
-                case .unified:
-                    UnifiedRows(lines: hunk.lines)
-                case .split:
-                    SplitRows(lines: hunk.lines)
+            if !isViewed {
+                ForEach(Array(file.hunks.enumerated()), id: \.offset) { _, hunk in
+                    HunkHeaderRow(header: hunk.header)
+                    switch mode {
+                    case .unified:
+                        UnifiedRows(lines: hunk.lines)
+                    case .split:
+                        SplitRows(lines: hunk.lines)
+                    }
                 }
             }
         }
@@ -162,10 +176,19 @@ private struct DiffFileSection: View {
             Spacer()
             Text("+\(file.addedCount)").foregroundStyle(.green)
             Text("−\(file.removedCount)").foregroundStyle(.red)
+            Toggle(isOn: Binding(
+                get: { isViewed },
+                set: { _ in onToggleViewed() }
+            )) {
+                Text("Viewed")
+                    .font(.callout)
+            }
+            .toggleStyle(.checkbox)
         }
         .font(.callout.monospacedDigit())
         .padding(8)
-        .background(Color.secondary.opacity(0.12))
+        .background(Color.secondary.opacity(isViewed ? 0.18 : 0.12))
+        .opacity(isViewed ? 0.6 : 1.0)
     }
 
     private var changeIcon: String {
