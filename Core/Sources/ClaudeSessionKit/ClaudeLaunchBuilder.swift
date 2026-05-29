@@ -18,7 +18,8 @@ public enum ClaudeLaunchBuilder {
         settings: Settings,
         review: Review,
         worktreePath: String,
-        resolvedClaudePath: String
+        resolvedClaudePath: String,
+        includeContinue: Bool
     ) -> ClaudeLaunchSpec {
         let sessionName: String
         if let issue = review.closingIssueNumber {
@@ -34,7 +35,11 @@ public enum ClaudeLaunchBuilder {
         args.append("max")
         args.append("--dangerously-skip-permissions")
         args.append(contentsOf: review.claudeFlags ?? [])
-        args.append("/review \(review.url.absoluteString)")
+        if includeContinue {
+            args.append("--continue")
+        } else {
+            args.append("/review \(review.url.absoluteString)")
+        }
         return ClaudeLaunchSpec(
             executable: resolvedClaudePath,
             cwd: worktreePath,
