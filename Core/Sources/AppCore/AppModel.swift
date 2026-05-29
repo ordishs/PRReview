@@ -388,6 +388,7 @@ public final class AppModel {
     }
 
     public func prefetch(for review: Review) {
+        guard !review.disabled else { return }
         Task { await ensureClaudeSession(for: review) }
         Task { await loadDiff(for: review) }
     }
@@ -399,6 +400,17 @@ public final class AppModel {
 
     public func dismissError() {
         errorMessage = nil
+    }
+
+    public func setReviewDisabled(_ disabled: Bool, for id: String) async {
+        guard var review = reviews.first(where: { $0.id == id }) else { return }
+        review.disabled = disabled
+        do {
+            try await store.upsert(review)
+            reviews = await store.allReviews()
+        } catch {
+            errorMessage = String(describing: error)
+        }
     }
 
     public func setDiffMode(_ mode: DiffMode) async {

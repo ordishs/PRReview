@@ -741,6 +741,55 @@ private let prFetchJSON = """
     #expect(persisted.pollIntervalSeconds == 300)
 }
 
+@Test @MainActor func setReviewDisabledPersistsFlag() async throws {
+    let url = tempStoreURL()
+    let store = try ReviewStore(fileURL: url)
+    let review = sampleReview()
+    try await store.upsert(review)
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: StubDiffLoader(),
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+    #expect(model.reviews.first?.disabled == false)
+
+    await model.setReviewDisabled(true, for: review.id)
+
+    #expect(model.reviews.first?.disabled == true)
+    let reloaded = try ReviewStore(fileURL: url)
+    let persisted = await reloaded.allReviews().first
+    #expect(persisted?.disabled == true)
+}
+
+@Test @MainActor func prefetchSkipsDisabledReview() async throws {
+    let store = try ReviewStore(fileURL: tempStoreURL())
+    var review = sampleReview()
+    review.disabled = true
+    try await store.upsert(review)
+    let recorder = RecordingDiffLoader()
+    let model = AppModel(
+        store: store,
+        client: stubClient(),
+        diffLoader: recorder,
+        worktreeProvider: StubWorktreeProvider(),
+        cloneRegistrar: StubRegistrar(),
+        claudePath: "/usr/bin/true",
+        notificationPoster: StubNotificationPoster()
+    )
+    await model.load()
+
+    model.prefetch(for: review)
+    try await Task.sleep(nanoseconds: 200_000_000)
+
+    let captured = await recorder.lastRegisteredClonePath
+    #expect(captured == nil)
+}
+
 @Test @MainActor func discoverNowUsesCurrentSettingsQueries() async throws {
     let store = try ReviewStore(fileURL: tempStoreURL())
     var seed = Settings.default

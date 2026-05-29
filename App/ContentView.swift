@@ -26,7 +26,14 @@ struct ContentView: View {
                     StatusDot(status: model.claudeStatuses[review.id])
                         .help(statusTooltip(model.claudeStatuses[review.id]))
                 }
+                .opacity(review.disabled ? 0.45 : 1.0)
                 .contextMenu {
+                    Button {
+                        Task { await model.setReviewDisabled(!review.disabled, for: review.id) }
+                    } label: {
+                        Label(review.disabled ? "Enable" : "Disable", systemImage: review.disabled ? "play.circle" : "pause.circle")
+                    }
+                    Divider()
                     Button(role: .destructive) {
                         Task { await model.removeReview(id: review.id) }
                     } label: {
