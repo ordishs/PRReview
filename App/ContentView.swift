@@ -37,6 +37,18 @@ struct ContentView: View {
             .frame(minWidth: 260)
             .toolbar {
                 ToolbarItem {
+                    Menu {
+                        Picker("Group by", selection: groupingBinding) {
+                            ForEach(SidebarGrouping.allCases, id: \.self) { mode in
+                                Text(mode.displayName).tag(mode)
+                            }
+                        }
+                    } label: {
+                        Label("Group", systemImage: "rectangle.3.group")
+                    }
+                    .help("Group sidebar by date, author, status, or none")
+                }
+                ToolbarItem {
                     Button {
                         showingAdd = true
                     } label: {
@@ -114,6 +126,17 @@ struct ContentView: View {
         let title: String
         let reviews: [Review]
         var id: String { title }
+    }
+
+    private var groupingBinding: Binding<SidebarGrouping> {
+        Binding(
+            get: { model.settings.sidebarGrouping },
+            set: { newValue in
+                var updated = model.settings
+                updated.sidebarGrouping = newValue
+                Task { await model.updateSettings(updated) }
+            }
+        )
     }
 
     private func groupedReviews() -> [ReviewGroup] {
