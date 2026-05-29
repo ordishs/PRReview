@@ -261,7 +261,7 @@ private struct SplitRows: View {
     @ViewBuilder
     private func sideView(line: DiffLine?, isLeft: Bool) -> some View {
         HStack(spacing: 0) {
-            Text(line?.oldNumber.map(String.init) ?? line?.newNumber.map(String.init) ?? "")
+            Text(numberFor(line, isLeft: isLeft))
                 .frame(width: 44, alignment: .trailing)
                 .foregroundStyle(.secondary)
             Text(line?.text ?? "")
@@ -269,6 +269,15 @@ private struct SplitRows: View {
                 .padding(.leading, 8)
         }
         .background(background(for: line, isLeft: isLeft))
+    }
+
+    private func numberFor(_ line: DiffLine?, isLeft: Bool) -> String {
+        guard let line else { return "" }
+        if isLeft {
+            return line.oldNumber.map(String.init) ?? ""
+        } else {
+            return line.newNumber.map(String.init) ?? ""
+        }
     }
 
     private func background(for line: DiffLine?, isLeft: Bool) -> Color {

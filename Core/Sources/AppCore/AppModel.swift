@@ -103,13 +103,37 @@ public final class AppModel {
     func discoverNow() async {
         let queries = Settings.default.discoveryQueries
         var hitsByID: [String: DiscoveryHit] = [:]
+        var anyQuerySucceeded = false
         for query in queries {
             guard let results = try? await client.searchPRs(query: query) else { continue }
+            anyQuerySucceeded = true
             for hit in results {
                 hitsByID[hit.id] = hit
             }
         }
         await mergeDiscoveryHits(Array(hitsByID.values))
+        if anyQuerySucceeded {
+            await pruneStaleDiscoveredReviews(currentHitIDs: Set(hitsByID.keys))
+        }
+    }
+
+    private func pruneStaleDiscoveredReviews(currentHitIDs: Set<String>) async {
+        let staleIDs = reviews.compactMap { review -> String? in
+            guard review.origin == .discovered else { return nil }
+            guard review.prState == .closed || review.prState == .merged else { return nil }
+            guard !currentHitIDs.contains(review.id) else { return nil }
+            return review.id
+        }
+        for id in staleIDs {
+            do {
+                try await store.removeReview(id: id)
+            } catch {
+                continue
+            }
+        }
+        if !staleIDs.isEmpty {
+            reviews = await store.allReviews()
+        }
     }
 
     private func mergeDiscoveryHits(_ hits: [DiscoveryHit]) async {

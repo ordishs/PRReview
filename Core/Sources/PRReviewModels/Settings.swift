@@ -38,7 +38,7 @@ public struct Settings: Codable, Sendable, Equatable {
 
     public static let `default` = Settings(
         managedRoot: Settings.defaultManagedRoot(),
-        discoveryQueries: ["review-requested:@me", "assignee:@me"],
+        discoveryQueries: ["review-requested:@me is:open", "assignee:@me is:open"],
         pollIntervalSeconds: 120,
         claudeLaunchArgs: [],
         notificationsEnabled: true,
