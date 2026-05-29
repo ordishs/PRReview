@@ -146,10 +146,9 @@ public func load() async {
     reviews = await store.allReviews()
     registeredRepos = await store.allRepos()
     startTickTimerIfNeeded()
-    startDiscoveryPollingIfNeeded()
 }
 
-private func startDiscoveryPollingIfNeeded() {
+public func startDiscoveryPolling() {
     guard discoveryTask == nil else { return }
     discoveryTask = Task { @MainActor in
         await self.discoverNow()
@@ -160,7 +159,14 @@ private func startDiscoveryPollingIfNeeded() {
         }
     }
 }
+```
 
+Polling is started by `PRReviewApp.swift` after `load()` returns rather than by
+`load()` itself. This keeps tests deterministic — they call `await model.load()`
+without triggering the background poll, and exercise `discoverNow()` directly
+instead.
+
+```swift
 func discoverNow() async {
     let queries = Settings.default.discoveryQueries
     var hitsByID: [String: DiscoveryHit] = [:]
@@ -218,8 +224,8 @@ private actor StubRunner: CommandRunner {
     private let fallback: CommandResult?
 
     init(result: CommandResult) {
-        self.results = [result]
-        self.fallback = result        // backwards-compatible: repeat infinitely
+        self.results = []
+        self.fallback = result        // backwards-compatible: single result served from fallback, repeats infinitely
     }
 
     init(results: [CommandResult]) {
@@ -282,7 +288,10 @@ The intentional silence is the spec's main UX trade-off. The alternative
 **Out of test scope:**
 - The Task-loop interval timing — `discoverNow` is the unit-test entry point; the actual periodic firing is verified manually.
 - Real `gh search prs` invocation — manual E2E.
-- Race between manual add and concurrent discovery — both serialize on `@MainActor`; the next poll resolves precedence.
+- Race between manual add and concurrent discovery — `mergeDiscoveryHits`
+  re-checks `self.reviews` before treating a hit as new, so a late `addPR`
+  during an `await` point is promoted to `.both` on the same poll cycle. Not
+  directly unit-tested (requires `await`-point injection); verified by reasoning.
 
 ## Build phasing context
 

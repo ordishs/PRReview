@@ -118,6 +118,12 @@ public final class AppModel {
                 updated.prState = GitHubClient.mapDiscoveryState(state: hit.state, isDraft: hit.isDraft)
                 if existing.origin == .added { updated.origin = .both }
                 try? await store.upsert(updated)
+            } else if let lateAdded = reviews.first(where: { $0.id == hit.id }) {
+                var updated = lateAdded
+                updated.title = hit.title
+                updated.prState = GitHubClient.mapDiscoveryState(state: hit.state, isDraft: hit.isDraft)
+                updated.origin = .both
+                try? await store.upsert(updated)
             } else {
                 guard let fresh = try? await client.fetchReview(for: hit.ref, origin: .discovered) else { continue }
                 try? await store.upsert(fresh)
