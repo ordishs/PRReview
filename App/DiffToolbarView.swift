@@ -6,7 +6,9 @@ import DiffKit
 struct DiffToolbarView: View {
     let model: AppModel
     let review: Review
-    let files: [DiffFile]
+    let fileCount: Int
+    let addedCount: Int
+    let removedCount: Int
 
     var body: some View {
         HStack(spacing: 12) {
@@ -21,7 +23,13 @@ struct DiffToolbarView: View {
             .labelsHidden()
             .frame(width: 140)
 
-            statsView
+            HStack(spacing: 6) {
+                Text("+\(addedCount)").foregroundStyle(.green)
+                Text("−\(removedCount)").foregroundStyle(.red)
+                Text("\(fileCount) file\(fileCount == 1 ? "" : "s")")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.callout.monospacedDigit())
 
             Spacer()
 
@@ -33,19 +41,6 @@ struct DiffToolbarView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-    }
-
-    @ViewBuilder
-    private var statsView: some View {
-        let added = files.reduce(0) { $0 + $1.addedCount }
-        let removed = files.reduce(0) { $0 + $1.removedCount }
-        HStack(spacing: 6) {
-            Text("+\(added)").foregroundStyle(.green)
-            Text("−\(removed)").foregroundStyle(.red)
-            Text("\(files.count) file\(files.count == 1 ? "" : "s")")
-                .foregroundStyle(.secondary)
-        }
-        .font(.callout.monospacedDigit())
     }
 
     private func tildeShortened(_ path: String) -> String {

@@ -46,7 +46,7 @@ struct DiffPaneView: View {
     private func loadedView(files: [DiffFile]) -> some View {
         let tree = FileTreeBuilder.build(files: files)
         VStack(spacing: 0) {
-            DiffToolbarView(model: model, review: review, files: files)
+            DiffToolbarView(model: model, review: review, fileCount: files.count, addedCount: tree.addedCount, removedCount: tree.removedCount)
             Divider()
             ScrollViewReader { proxy in
                 HSplitView {
@@ -306,8 +306,8 @@ private struct SplitRows: View {
             case .removed:
                 pending.append(line)
             case .added:
-                if let firstRemovedIndex = pending.firstIndex(where: { $0.kind == .removed }) {
-                    let removed = pending.remove(at: firstRemovedIndex)
+                if !pending.isEmpty {
+                    let removed = pending.removeFirst()
                     pairs.append(LinePair(left: removed, right: line))
                 } else {
                     pairs.append(LinePair(left: nil, right: line))

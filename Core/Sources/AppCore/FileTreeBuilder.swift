@@ -4,16 +4,16 @@ import DiffKit
 public struct FileTreeNode: Sendable, Equatable, Identifiable {
     public let id: String
     public let name: String
-    public let isLeaf: Bool
     public let fileID: String?
     public var addedCount: Int
     public var removedCount: Int
     public var children: [FileTreeNode]
 
-    public init(id: String, name: String, isLeaf: Bool, fileID: String?, addedCount: Int, removedCount: Int, children: [FileTreeNode]) {
+    public var isLeaf: Bool { fileID != nil }
+
+    public init(id: String, name: String, fileID: String?, addedCount: Int, removedCount: Int, children: [FileTreeNode]) {
         self.id = id
         self.name = name
-        self.isLeaf = isLeaf
         self.fileID = fileID
         self.addedCount = addedCount
         self.removedCount = removedCount
@@ -98,7 +98,6 @@ private struct MutableNode {
         FileTreeNode(
             id: path.isEmpty ? "/" : path,
             name: name,
-            isLeaf: isLeaf,
             fileID: fileID,
             addedCount: addedCount,
             removedCount: removedCount,
