@@ -41,6 +41,7 @@ public struct WorktreeManager: Sendable {
                 message: "directory exists but is not a registered git worktree: \(worktreePath). Remove it with: rm -rf '\(worktreePath)'"
             )
         }
+        try await runGit(["-C", clonePath, "worktree", "prune"])
         try await runGit(["-C", clonePath, "fetch", remoteName, "refs/pull/\(number)/head"])
         let sha = try await runGit(["-C", clonePath, "rev-parse", "FETCH_HEAD"]).trimmingCharacters(in: .whitespacesAndNewlines)
         try FileManager.default.createDirectory(atPath: worktreesDir, withIntermediateDirectories: true)

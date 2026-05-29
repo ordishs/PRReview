@@ -263,3 +263,32 @@ private func makeFixture(prNumber: Int) async throws -> GitFixture {
         Issue.record("expected WorktreeError.gitFailed, got \(error)")
     }
 }
+
+@Test func createWorktreePrunesBeforeAddingNewWorktree() async throws {
+    let tempRoot = NSTemporaryDirectory() + "wt-test-\(UUID().uuidString)"
+    defer { try? FileManager.default.removeItem(atPath: tempRoot) }
+
+    let runner = QueuedStubRunner(scriptedResponses: [
+        // worktree prune
+        CommandResult(exitCode: 0, standardOutput: "", standardError: ""),
+        // fetch
+        CommandResult(exitCode: 0, standardOutput: "", standardError: ""),
+        // rev-parse FETCH_HEAD
+        CommandResult(exitCode: 0, standardOutput: "abc123\n", standardError: ""),
+        // worktree add
+        CommandResult(exitCode: 0, standardOutput: "", standardError: "")
+    ])
+    let manager = WorktreeManager(runner: runner, gitPath: "git", managedRoot: tempRoot)
+
+    _ = try await manager.createWorktree(
+        clonePath: "/tmp/clone",
+        owner: "owner",
+        repo: "repo",
+        number: 999,
+        remoteName: "origin"
+    )
+
+    let args = await runner.recordedArguments
+    let firstCall = args.first ?? []
+    #expect(firstCall == ["-C", "/tmp/clone", "worktree", "prune"])
+}
