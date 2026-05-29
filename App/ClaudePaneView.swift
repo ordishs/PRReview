@@ -22,6 +22,8 @@ struct ClaudePaneView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .worktreeFailed(let message):
                 worktreeFailureView(message: message)
+            case .claudeUnavailable(let message):
+                claudeUnavailableView(message: message)
             case .sessionLive:
                 if let session = model.claudeSessions[review.id] {
                     VStack(spacing: 0) {
@@ -50,6 +52,24 @@ struct ClaudePaneView: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            Button("Retry") {
+                Task { await model.ensureClaudeSession(for: review) }
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder
+    private func claudeUnavailableView(message: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("claude not found")
+                .font(.headline)
+            Text(message)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
             Button("Retry") {
                 Task { await model.ensureClaudeSession(for: review) }
             }

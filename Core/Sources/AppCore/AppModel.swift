@@ -4,11 +4,13 @@ import PRReviewModels
 import ReviewStore
 import GitHubKit
 import ClaudeSessionKit
+import CommandSupport
 
 public enum ClaudePaneState: Sendable, Equatable {
     case idle
     case preparingWorktree
     case worktreeFailed(String)
+    case claudeUnavailable(String)
     case sessionLive
 }
 
@@ -43,6 +45,8 @@ public final class AppModel {
     private let claudePath: String
     private let notificationPoster: NotificationPosting
     private let statusReader: ClaudeStatusReader
+    private let commandRunner: CommandRunner
+    private var resolvedClaudePath: String?
 
     public init(
         store: ReviewStore,
@@ -52,7 +56,8 @@ public final class AppModel {
         cloneRegistrar: CloneRegistering,
         claudePath: String,
         notificationPoster: NotificationPosting,
-        statusReader: ClaudeStatusReader = ClaudeStatusReader()
+        statusReader: ClaudeStatusReader = ClaudeStatusReader(),
+        commandRunner: CommandRunner = ProcessCommandRunner()
     ) {
         self.store = store
         self.client = client
@@ -62,6 +67,7 @@ public final class AppModel {
         self.claudePath = claudePath
         self.notificationPoster = notificationPoster
         self.statusReader = statusReader
+        self.commandRunner = commandRunner
     }
 
     public func load() async {
@@ -270,9 +276,39 @@ public final class AppModel {
         }
     }
 
+    static let claudeNotFoundMessage = """
+    Couldn't find the `claude` command on your login PATH.
+
+    Open a terminal and run `which claude`, then paste that path into Settings ▸ Tools ▸ claude.
+    """
+
+    private func claudeExecutable() async -> String? {
+        if let override = explicitClaudeOverride() {
+            return override
+        }
+        if let cached = resolvedClaudePath {
+            return cached
+        }
+        let resolved = await LoginShellResolver.resolve("claude", runner: commandRunner)
+        resolvedClaudePath = resolved
+        return resolved
+    }
+
+    private func explicitClaudeOverride() -> String? {
+        for candidate in [settings.claudePath, claudePath] {
+            guard let candidate, !candidate.isEmpty, candidate != "claude" else { continue }
+            return (candidate as NSString).expandingTildeInPath
+        }
+        return nil
+    }
+
     public func ensureClaudeSession(for review: Review) async {
         if claudeSessions[review.id] != nil {
             claudePaneState[review.id] = .sessionLive
+            return
+        }
+        guard let executable = await claudeExecutable() else {
+            claudePaneState[review.id] = .claudeUnavailable(Self.claudeNotFoundMessage)
             return
         }
         claudePaneState[review.id] = .preparingWorktree
@@ -302,7 +338,7 @@ public final class AppModel {
             settings: settings,
             review: review,
             worktreePath: ready.worktreePath,
-            resolvedClaudePath: claudePath,
+            resolvedClaudePath: executable,
             resumeSessionID: resumeSessionID
         )
         let session = ClaudeSession(spec: spec)

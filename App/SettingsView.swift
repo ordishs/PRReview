@@ -95,7 +95,7 @@ private struct ToolsSettingsTab: View {
                 pathRow(label: "gh", binding: $ghPath, placeholder: "/opt/homebrew/bin/gh")
                 pathRow(label: "git", binding: $gitPath, placeholder: "/opt/homebrew/bin/git")
                 pathRow(label: "claude", binding: $claudePath, placeholder: "/opt/homebrew/bin/claude or ~/.claude/local/claude")
-                Text("Leave empty to resolve from PATH via login shell — matches what `which claude` returns in Terminal.")
+                Text("Leave empty to auto-detect from your shell PATH — matches what `which claude` returns in your terminal.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
