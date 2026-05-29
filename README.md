@@ -10,24 +10,50 @@ and `claude` runs inside the worktree without leaving the app.
 
 ## Status
 
-Greenfield. Phase 1 is largely complete — scaffold, review store, GitHub/git
-integration, native diff pane, registered local clones, management UX, and the
-SwiftTerm-backed Claude pane are all wired up. Outstanding work includes diff UX
-polish (file tree, unified/split toggle, hunk headers) and transcript-tailing
-status badges.
+Phases 1 and 2 are complete. The sidebar auto-populates from `gh search prs`
+queries every 120s (configurable), discovered PRs merge with manually-added
+ones, status dots reflect live claude session activity (working/idle/ready),
+and a "review ready" system notification fires on the first `.working → .idle`
+transition per session. The diff pane renders GitHub's "Files changed" layout
+natively from local git: file tree on the left, Unified/Split toggle, sticky
+file headers with stats, and `@@` hunk header bands.
 
 ## The three panes
 
 - **Claude** — `SwiftTerm` `NSView` running the `claude` CLI in a PTY rooted at
-  the PR's worktree. One session per review, kept alive after first view,
-  rehydrated with `--resume` across launches.
-- **Diff** — `git diff <merge-base>...<head>` parsed natively and rendered
-  inline. No round trip to github.com.
+  the PR's worktree. One session per review, kept alive across tab/PR switches,
+  killed on app quit. First open on a fresh worktree launches with the legacy
+  `/review <URL>` slash command + `--name`, `--effort max`,
+  `--dangerously-skip-permissions` flags. Subsequent opens (after a prior
+  session transcript exists in `~/.claude/projects/<encoded-cwd>/`) launch with
+  `--continue` instead, resuming the prior session without re-running the
+  review.
+- **Diff** — `git diff <merge-base>...<head>` parsed natively and rendered as
+  GitHub's "Files changed": file tree on the left, Unified or Split rendering
+  on the right, sticky per-file headers, `@@` hunk header bands. Worktrees
+  auto-refresh on force-push (fast-forward when clean, warn if dirty). Diff
+  state is cached per-review so tab/PR switches are instant.
 - **GitHub** — a `WKWebView` on the PR page with a persistent data store so the
-  session sticks.
+  session sticks. Web views are cached per-review for instant tab switches; a
+  Refresh button (⌘R) reloads the page.
 
-All three bind to the same selected review; the segmented control only swaps
-which view is visible.
+All three bind to the same selected review; the segmented control swaps which
+view is visible. ⌘1 / ⌘2 / ⌘3 jump to Claude / GitHub / Diff respectively.
+
+## Settings
+
+`⌘,` opens the Settings window with three tabs:
+
+- **Discovery** — edit `gh search prs` queries (one per line, include `is:open`
+  to filter out closed PRs), poll interval (30-3600 seconds), and sidebar
+  grouping (none / by date / by author / by status).
+- **Tools** — override paths to `gh`, `git`, and `claude`. Leave blank to
+  auto-resolve from `PATH`.
+- **Claude** — extra launch arguments (prepended to every `claude`
+  invocation) and a notifications-enabled toggle.
+
+Changes save immediately. Changing discovery queries triggers an immediate
+poll cycle.
 
 ## Requirements
 
