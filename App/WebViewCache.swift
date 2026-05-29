@@ -25,6 +25,10 @@ final class WebViewCache {
         return webView
     }
 
+    func reload(for review: Review) {
+        webViews[review.id]?.reload()
+    }
+
     func remove(reviewID: String) {
         if let webView = webViews.removeValue(forKey: reviewID) {
             webView.stopLoading()

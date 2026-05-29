@@ -29,10 +29,13 @@ struct DetailView: View {
             switch pane {
             case .github:
                 WebPane(cache: webViewCache, review: review)
+                    .id(review.id)
             case .diff:
                 DiffPaneView(model: model, review: review)
+                    .id(review.id)
             case .claude:
                 ClaudePaneView(model: model, review: review)
+                    .id(review.id)
             }
         }
         .navigationTitle("#\(review.number) \(review.title)")
