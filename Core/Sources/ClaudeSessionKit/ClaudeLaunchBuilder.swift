@@ -19,7 +19,7 @@ public enum ClaudeLaunchBuilder {
         review: Review,
         worktreePath: String,
         resolvedClaudePath: String,
-        includeContinue: Bool
+        resumeSessionID: String? = nil
     ) -> ClaudeLaunchSpec {
         let sessionName: String
         if let issue = review.closingIssueNumber {
@@ -35,8 +35,9 @@ public enum ClaudeLaunchBuilder {
         args.append("max")
         args.append("--dangerously-skip-permissions")
         args.append(contentsOf: review.claudeFlags ?? [])
-        if includeContinue {
-            args.append("--continue")
+        if let id = resumeSessionID {
+            args.append("--resume")
+            args.append(id)
         } else {
             args.append("/review \(review.url.absoluteString)")
         }

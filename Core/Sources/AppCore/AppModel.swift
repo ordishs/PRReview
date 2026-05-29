@@ -297,13 +297,13 @@ public final class AppModel {
             try? await store.upsert(updated)
             reviews = await store.allReviews()
         }
-        let hasPriorSession = Self.hasClaudeTranscript(forCwd: ready.worktreePath)
+        let resumeSessionID = ClaudeTranscriptPath.latestSessionID(forWorktreePath: ready.worktreePath)
         let spec = ClaudeLaunchBuilder.build(
             settings: settings,
             review: review,
             worktreePath: ready.worktreePath,
             resolvedClaudePath: claudePath,
-            includeContinue: hasPriorSession
+            resumeSessionID: resumeSessionID
         )
         let session = ClaudeSession(spec: spec)
         claudeSessions[review.id] = session
@@ -412,16 +412,6 @@ public final class AppModel {
 
     public func dismissError() {
         errorMessage = nil
-    }
-
-    private static func hasClaudeTranscript(forCwd cwd: String) -> Bool {
-        let encoded = cwd.replacingOccurrences(of: "/", with: "-")
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser
-        let projectsDir = homeDir.appendingPathComponent(".claude/projects/\(encoded)")
-        guard let entries = try? FileManager.default.contentsOfDirectory(atPath: projectsDir.path) else {
-            return false
-        }
-        return entries.contains { $0.hasSuffix(".jsonl") }
     }
 
     public func markReviewOpened(_ id: String) async {

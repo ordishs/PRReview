@@ -13,13 +13,13 @@ private func sampleReview() -> Review {
     )
 }
 
-@Test func launchBuilderWithoutContinueIncludesReviewSlashCommand() {
+@Test func launchBuilderWithoutResumeIDIncludesReviewSlashCommand() {
     let spec = ClaudeLaunchBuilder.build(
         settings: .default,
         review: sampleReview(),
         worktreePath: "/tmp/wt",
         resolvedClaudePath: "/bin/claude",
-        includeContinue: false
+        resumeSessionID: nil
     )
     #expect(spec.executable == "/bin/claude")
     #expect(spec.cwd == "/tmp/wt")
@@ -29,17 +29,23 @@ private func sampleReview() -> Review {
     #expect(spec.arguments.contains("max"))
     #expect(spec.arguments.contains("--dangerously-skip-permissions"))
     #expect(spec.arguments.contains("/review https://github.com/bsv-blockchain/teranode/pull/944"))
+    #expect(!spec.arguments.contains("--resume"))
     #expect(!spec.arguments.contains("--continue"))
 }
 
-@Test func launchBuilderWithContinueOmitsReviewSlashCommand() {
+@Test func launchBuilderWithResumeIDEmitsResumeFlagAndOmitsReview() {
     let spec = ClaudeLaunchBuilder.build(
         settings: .default,
         review: sampleReview(),
         worktreePath: "/tmp/wt",
         resolvedClaudePath: "/bin/claude",
-        includeContinue: true
+        resumeSessionID: "10889bb0-624c-4ef5-94f7-77480418849c"
     )
-    #expect(spec.arguments.contains("--continue"))
+    let idx = spec.arguments.firstIndex(of: "--resume")
+    #expect(idx != nil)
+    if let idx {
+        #expect(spec.arguments[spec.arguments.index(after: idx)] == "10889bb0-624c-4ef5-94f7-77480418849c")
+    }
     #expect(!spec.arguments.contains { $0.hasPrefix("/review ") })
+    #expect(!spec.arguments.contains("--continue"))
 }
