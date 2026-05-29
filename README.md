@@ -89,6 +89,17 @@ The full design spec, decision log, and per-phase plans live under
 `docs/superpowers/`. Start with
 `docs/superpowers/specs/2026-05-27-pr-review-app-design.md`.
 
+## Distribution (planned)
+
+A Homebrew cask formula is committed at `Casks/prreview.rb`. It is currently a template — no DMG release exists yet. Once the first signed release is published to GitHub Releases, the cask can be installed via a personal tap:
+
+```bash
+brew tap ordishs/code-reviewer https://github.com/ordishs/code-reviewer
+brew install --cask prreview
+```
+
+The cask's `sha256` and `url` will need to be updated as part of the release process.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
