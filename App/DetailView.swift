@@ -19,7 +19,9 @@ struct DetailView: View {
         VStack(spacing: 0) {
             Picker("", selection: $pane) {
                 ForEach(Pane.allCases) { pane in
-                    Text(pane.rawValue).tag(pane)
+                    Text(pane.rawValue)
+                        .tag(pane)
+                        .disabled(pane == .claude && review.disabled)
                 }
             }
             .pickerStyle(.segmented)
@@ -40,11 +42,16 @@ struct DetailView: View {
             }
         }
         .navigationTitle("#\(review.number) \(review.title)")
+        .onChange(of: review.disabled) { _, disabled in
+            if disabled && pane == .claude {
+                pane = .github
+            }
+        }
     }
 
     private var paneShortcuts: some View {
         ZStack {
-            Button("") { pane = .claude }
+            Button("") { if !review.disabled { pane = .claude } }
                 .keyboardShortcut("1", modifiers: .command)
             Button("") { pane = .github }
                 .keyboardShortcut("2", modifiers: .command)

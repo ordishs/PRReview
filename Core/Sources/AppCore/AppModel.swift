@@ -303,6 +303,7 @@ public final class AppModel {
     }
 
     public func ensureClaudeSession(for review: Review) async {
+        guard !review.disabled else { return }
         if claudeSessions[review.id] != nil {
             claudePaneState[review.id] = .sessionLive
             return
