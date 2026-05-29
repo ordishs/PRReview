@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fafbfc"/>
+      <stop offset="1" stop-color="#dde1e6"/>
+    </linearGradient>
+    <filter id="squircleShadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="10"/>
+      <feOffset dx="0" dy="8"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.28"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="barShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="0" dy="2"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect x="72" y="72" width="880" height="880" rx="196" ry="196" fill="url(#bg)" filter="url(#squircleShadow)"/>
+  <rect x="86" y="84" width="852" height="4" rx="2" fill="#ffffff" opacity="0.7"/>
+
+  <g filter="url(#barShadow)">
+    <rect x="224" y="326" width="240" height="52" rx="14" fill="#f85149"/>
+    <rect x="224" y="406" width="180" height="52" rx="14" fill="#f85149"/>
+    <rect x="224" y="486" width="220" height="52" rx="14" fill="#f85149"/>
+    <rect x="224" y="566" width="130" height="52" rx="14" fill="#f85149"/>
+    <rect x="224" y="646" width="200" height="52" rx="14" fill="#f85149"/>
+  </g>
+
+  <g filter="url(#barShadow)">
+    <rect x="560" y="326" width="220" height="52" rx="14" fill="#3fb950"/>
+    <rect x="560" y="406" width="240" height="52" rx="14" fill="#3fb950"/>
+    <rect x="560" y="486" width="160" height="52" rx="14" fill="#3fb950"/>
+    <rect x="560" y="566" width="240" height="52" rx="14" fill="#3fb950"/>
+    <rect x="560" y="646" width="180" height="52" rx="14" fill="#3fb950"/>
+  </g>
+
+  <polygon points="496,488 532,512 496,536" fill="#6b7280" opacity="0.65"/>
+</svg>
