@@ -18,3 +18,6 @@ PRReview.xcodeproj/
 
 # xcodebuild derived data used by this repo's build commands
 DerivedData/
+
+# Release artifacts (scripts/release.sh)
+build/

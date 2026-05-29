@@ -115,16 +115,38 @@ The full design spec, decision log, and per-phase plans live under
 `docs/superpowers/`. Start with
 `docs/superpowers/specs/2026-05-27-pr-review-app-design.md`.
 
-## Distribution (planned)
+## Distribution
 
-A Homebrew cask formula is committed at `Casks/prreview.rb`. It is currently a template — no DMG release exists yet. Once the first signed release is published to GitHub Releases, the cask can be installed via a personal tap:
+A Homebrew cask is committed at `Casks/prreview.rb`. Cutting a release is one command — `scripts/release.sh` archives, signs, notarises, staples, builds a DMG, and rewrites the cask with the new version + sha256.
+
+One-time setup:
+
+```bash
+# Apple Developer credentials
+export DEVELOPMENT_TEAM="ABCDE12345"
+export SIGNING_IDENTITY="Developer ID Application: Your Name (ABCDE12345)"
+
+# Stored notarytool profile name (see scripts/release.sh header for store-credentials)
+export NOTARY_PROFILE="prreview-notary"
+
+# DMG builder
+brew install create-dmg
+```
+
+Cut a release:
+
+```bash
+scripts/release.sh 0.1.0
+# follow the printed git/gh commands to commit the cask, tag, push,
+# and upload the DMG to GitHub Releases.
+```
+
+Users then install via a personal tap:
 
 ```bash
 brew tap ordishs/code-reviewer https://github.com/ordishs/code-reviewer
 brew install --cask prreview
 ```
-
-The cask's `sha256` and `url` will need to be updated as part of the release process.
 
 ## License
 
