@@ -215,6 +215,16 @@ private let sampleSearchJSONWithMalformedRepo = """
     #expect(hits.first?.repo == "teranode")
 }
 
+@Test func searchPRsSplitsMultiQualifierQueryIntoSeparateArgs() async throws {
+    let runner = RecordingRunner(result: CommandResult(exitCode: 0, standardOutput: "[]", standardError: ""))
+    let client = GitHubClient(runner: runner, ghPath: "gh")
+
+    _ = try await client.searchPRs(query: "review-requested:@me is:open")
+
+    let args = await runner.lastArguments
+    #expect(args == ["search", "prs", "review-requested:@me", "is:open", "--json", "number,title,url,state,isDraft,author,repository", "--limit", "100"])
+}
+
 @Test func mapDiscoveryStateNormalizesCasing() {
     #expect(GitHubClient.mapDiscoveryState(state: "open", isDraft: false) == .open)
     #expect(GitHubClient.mapDiscoveryState(state: "open", isDraft: true) == .draft)

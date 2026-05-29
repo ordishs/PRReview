@@ -100,9 +100,10 @@ private struct GHSearchHit: Decodable {
 extension GitHubClient {
     public func searchPRs(query: String) async throws -> [DiscoveryHit] {
         let fields = "number,title,url,state,isDraft,author,repository"
+        let queryTokens = query.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
         let result = try await runner.run(
             executable: ghPath,
-            arguments: ["search", "prs", query, "--json", fields, "--limit", "100"]
+            arguments: ["search", "prs"] + queryTokens + ["--json", fields, "--limit", "100"]
         )
         guard result.exitCode == 0 else {
             throw GitHubError.commandFailed(exitCode: result.exitCode, message: result.standardError)
