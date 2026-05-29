@@ -6,7 +6,8 @@
 # One-time setup:
 #
 #   1. Apple Developer account, with a "Developer ID Application" certificate
-#      installed in your login keychain.
+#      installed in your login keychain. The signing identity and team id are
+#      set on the app target's Release config in project.yml.
 #
 #   2. Store an App Store Connect API key (or app-specific password) under a
 #      keychain profile so notarytool can pick it up non-interactively:
@@ -20,11 +21,10 @@
 #
 #        brew install create-dmg
 #
-#   4. Export the three env vars (e.g. in ~/.zshrc):
+#   4. Create a .env file in the repo root (gitignored) — this script loads it:
 #
-#        export DEVELOPMENT_TEAM="ABCDE12345"
-#        export SIGNING_IDENTITY="Developer ID Application: Your Name (ABCDE12345)"
-#        export NOTARY_PROFILE="prreview-notary"
+#        DEVELOPMENT_TEAM=ABCDE12345
+#        NOTARY_PROFILE=prreview-notary
 #
 # Usage:
 #
@@ -33,14 +33,21 @@
 
 set -euo pipefail
 
-: "${DEVELOPMENT_TEAM:?Set DEVELOPMENT_TEAM to your 10-char Apple team ID}"
-: "${SIGNING_IDENTITY:?Set SIGNING_IDENTITY to your Developer ID Application identity}"
-: "${NOTARY_PROFILE:?Set NOTARY_PROFILE to the keychain profile name created via xcrun notarytool store-credentials}"
-
-VERSION="${1:?Usage: scripts/release.sh <version> (e.g. 0.1.0)}"
-
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
+
+# Load release config (DEVELOPMENT_TEAM, NOTARY_PROFILE) from an uncommitted
+# .env in the repo root, so the script runs without exporting vars by hand.
+if [ -f "$REPO_ROOT/.env" ]; then
+    set -a
+    . "$REPO_ROOT/.env"
+    set +a
+fi
+
+: "${DEVELOPMENT_TEAM:?Set DEVELOPMENT_TEAM (10-char Apple team id) in .env or the environment}"
+: "${NOTARY_PROFILE:?Set NOTARY_PROFILE (notarytool keychain profile) in .env or the environment}"
+
+VERSION="${1:?Usage: scripts/release.sh <version> (e.g. 0.1.0)}"
 
 BUILD_DIR="build/release"
 ARCHIVE="$BUILD_DIR/PRReview-$VERSION.xcarchive"
@@ -49,10 +56,21 @@ APP_PATH="$EXPORT_DIR/PRReview.app"
 ZIP_PATH="$BUILD_DIR/PRReview-$VERSION.zip"
 DMG_PATH="$BUILD_DIR/PRReview-$VERSION.dmg"
 EXPORT_OPTS="$BUILD_DIR/ExportOptions.plist"
-CASK="Casks/prreview.rb"
+# The cask lives in the ordishs/homebrew-tap repo so users can run
+# `brew install ordishs/tap/prreview`. Default to a clone beside this repo;
+# override with TAP_DIR in .env if yours is elsewhere.
+TAP_DIR="${TAP_DIR:-$REPO_ROOT/../homebrew-tap}"
+CASK="$TAP_DIR/Casks/prreview.rb"
 
 if ! command -v create-dmg >/dev/null; then
     echo "create-dmg is not installed. Run: brew install create-dmg" >&2
+    exit 1
+fi
+
+if [ ! -f "$CASK" ]; then
+    echo "Cask not found at $CASK" >&2
+    echo "Clone the tap beside this repo (or set TAP_DIR in .env):" >&2
+    echo "  git clone git@github.com:ordishs/homebrew-tap.git \"$TAP_DIR\"" >&2
     exit 1
 fi
 
@@ -64,17 +82,21 @@ if command -v xcodegen >/dev/null; then
 fi
 
 echo "==> Archiving Release build for $VERSION"
+# Signing is configured on the app target's Release config in project.yml
+# (Manual / Developer ID Application / DEVELOPMENT_TEAM / hardened runtime), so
+# the archive signs the app and its embedded frameworks with the hardened
+# runtime notarisation requires. We deliberately do NOT pass CODE_SIGN_IDENTITY /
+# DEVELOPMENT_TEAM on the command line: those apply globally and would force the
+# SwiftPM library targets (DiffKit, etc.) to sign too, but CLI build settings
+# don't propagate into the synthesized package project, so they fall back to the
+# wrong team and fail. Library targets statically link into the app and are
+# covered by the app-target signature.
 xcodebuild \
     -project PRReview.xcodeproj \
     -scheme PRReview \
     -configuration Release \
     -archivePath "$ARCHIVE" \
     -derivedDataPath "$BUILD_DIR/DerivedData" \
-    CODE_SIGNING_REQUIRED=YES \
-    CODE_SIGNING_ALLOWED=YES \
-    CODE_SIGN_STYLE=Manual \
-    CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
-    DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
     MARKETING_VERSION="$VERSION" \
     archive
 
@@ -86,6 +108,7 @@ cat >"$EXPORT_OPTS" <<EOF
     <key>method</key><string>developer-id</string>
     <key>teamID</key><string>$DEVELOPMENT_TEAM</string>
     <key>signingStyle</key><string>manual</string>
+    <key>signingCertificate</key><string>Developer ID Application</string>
 </dict>
 </plist>
 EOF
@@ -141,12 +164,13 @@ echo "  sha256: $SHA"
 echo "  cask:   $CASK (updated)"
 echo ""
 echo "Next steps:"
-echo "  git add $CASK"
-echo "  git commit -m \"release: v$VERSION\" --no-verify"
-echo "  git tag v$VERSION"
-echo "  git push origin main v$VERSION"
-echo "  gh release create v$VERSION $DMG_PATH --title \"v$VERSION\" --notes \"Release v$VERSION\""
+echo "  # 1) tag the app repo and publish the DMG (ordishs/PRReview):"
+echo "  git tag v$VERSION && git push origin main v$VERSION"
+echo "  gh release create v$VERSION \"$DMG_PATH\" --title \"v$VERSION\" --notes \"Release v$VERSION\""
+echo "  # 2) publish the updated cask in the tap (ordishs/homebrew-tap):"
+echo "  git -C \"$TAP_DIR\" add Casks/prreview.rb"
+echo "  git -C \"$TAP_DIR\" commit -m \"prreview $VERSION\""
+echo "  git -C \"$TAP_DIR\" push"
 echo ""
 echo "Then users can install via:"
-echo "  brew tap ordishs/code-reviewer https://github.com/ordishs/code-reviewer"
-echo "  brew install --cask prreview"
+echo "  brew install ordishs/tap/prreview"

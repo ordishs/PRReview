@@ -117,35 +117,35 @@ The full design spec, decision log, and per-phase plans live under
 
 ## Distribution
 
-A Homebrew cask is committed at `Casks/prreview.rb`. Cutting a release is one command — `scripts/release.sh` archives, signs, notarises, staples, builds a DMG, and rewrites the cask with the new version + sha256.
+The Homebrew cask lives in the tap repo `ordishs/homebrew-tap` (`Casks/prreview.rb`). Cutting a release is one command — `scripts/release.sh` archives, signs, notarises, staples, builds a DMG, and rewrites the cask with the new version + sha256.
 
 One-time setup:
 
 ```bash
-# Apple Developer credentials
-export DEVELOPMENT_TEAM="ABCDE12345"
-export SIGNING_IDENTITY="Developer ID Application: Your Name (ABCDE12345)"
-
-# Stored notarytool profile name (see scripts/release.sh header for store-credentials)
-export NOTARY_PROFILE="prreview-notary"
-
 # DMG builder
 brew install create-dmg
+
+# Clone the tap beside this repo (or set TAP_DIR in .env)
+git clone git@github.com:ordishs/homebrew-tap.git ../homebrew-tap
+
+# Release config: create a .env in the repo root (gitignored) — the script loads it.
+#   DEVELOPMENT_TEAM=ABCDE12345
+#   NOTARY_PROFILE=prreview-notary
+# Create the notarytool profile once (see scripts/release.sh header).
 ```
 
 Cut a release:
 
 ```bash
 scripts/release.sh 0.1.0
-# follow the printed git/gh commands to commit the cask, tag, push,
-# and upload the DMG to GitHub Releases.
+# then follow the printed steps: tag + push the app repo, upload the DMG to
+# GitHub Releases, and commit + push the cask in the tap.
 ```
 
-Users then install via a personal tap:
+Users then install via the tap:
 
 ```bash
-brew tap ordishs/code-reviewer https://github.com/ordishs/code-reviewer
-brew install --cask prreview
+brew install ordishs/tap/prreview
 ```
 
 ## License

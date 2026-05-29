@@ -31,6 +31,14 @@ targets:
         SWIFT_VERSION: "6.0"
         CODE_SIGNING_REQUIRED: NO
         CODE_SIGNING_ALLOWED: NO
+      configs:
+        Release:
+          CODE_SIGNING_REQUIRED: YES
+          CODE_SIGNING_ALLOWED: YES
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Developer ID Application"
+          DEVELOPMENT_TEAM: "83K7DKZ4B9"
+          ENABLE_HARDENED_RUNTIME: YES
 schemes:
   PRReview:
     build:
