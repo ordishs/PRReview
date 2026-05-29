@@ -4,6 +4,7 @@ import AppCore
 
 struct DetailView: View {
     let model: AppModel
+    let webViewCache: WebViewCache
     let review: Review
     @State private var pane: Pane = .github
 
@@ -27,7 +28,7 @@ struct DetailView: View {
             Divider()
             switch pane {
             case .github:
-                WebPane(url: review.url)
+                WebPane(cache: webViewCache, review: review)
             case .diff:
                 DiffPaneView(model: model, review: review)
             case .claude:

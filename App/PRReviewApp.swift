@@ -7,12 +7,13 @@ struct PRReviewApp: App {
     @State private var model: AppModel?
     @State private var startupError: String?
     @State private var showingManage = false
+    @State private var webViewCache = WebViewCache()
 
     var body: some Scene {
         WindowGroup {
             Group {
                 if let model {
-                    ContentView(model: model)
+                    ContentView(model: model, webViewCache: webViewCache)
                         .sheet(isPresented: $showingManage) {
                             ManageLocalClonesView(model: model, isPresented: $showingManage)
                         }

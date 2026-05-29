@@ -5,6 +5,7 @@ import ClaudeSessionKit
 
 struct ContentView: View {
     @Bindable var model: AppModel
+    let webViewCache: WebViewCache
     @State private var showingAdd = false
 
     var body: some View {
@@ -54,7 +55,7 @@ struct ContentView: View {
             }
         } detail: {
             if let review = model.selectedReview() {
-                DetailView(model: model, review: review)
+                DetailView(model: model, webViewCache: webViewCache, review: review)
             } else {
                 Text("Select a review")
                     .foregroundStyle(.secondary)
@@ -74,6 +75,7 @@ struct ContentView: View {
             guard let id = newSelection,
                   let review = model.reviews.first(where: { $0.id == id }) else { return }
             model.prefetch(for: review)
+            _ = webViewCache.ensure(for: review)
         }
     }
 }

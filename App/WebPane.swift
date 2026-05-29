@@ -1,30 +1,26 @@
 import SwiftUI
+import AppKit
 import WebKit
+import PRReviewModels
 
 struct WebPane: NSViewRepresentable {
-    let url: URL
+    let cache: WebViewCache
+    let review: Review
 
-    final class Coordinator {
-        var loadedURL: URL?
+    func makeNSView(context: Context) -> NSView {
+        let container = NSView()
+        let webView = cache.ensure(for: review)
+        webView.removeFromSuperview()
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(webView)
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: container.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+        ])
+        return container
     }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-
-    func makeNSView(context: Context) -> WKWebView {
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = .default()
-        let webView = WKWebView(frame: .zero, configuration: configuration)
-        context.coordinator.loadedURL = url
-        webView.load(URLRequest(url: url))
-        return webView
-    }
-
-    func updateNSView(_ webView: WKWebView, context: Context) {
-        if context.coordinator.loadedURL != url {
-            context.coordinator.loadedURL = url
-            webView.load(URLRequest(url: url))
-        }
-    }
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }
