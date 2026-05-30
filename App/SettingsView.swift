@@ -166,6 +166,7 @@ private struct ClaudeSettingsTab: View {
                 TextField("", text: $envText, prompt: Text("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 FOO=bar"))
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
+                    .labelsHidden()
                 Text("Prepended before the claude command, exactly as typed. Leave empty for none.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -175,6 +176,7 @@ private struct ClaudeSettingsTab: View {
                 HStack {
                     TextField("", text: $claudePath, prompt: Text("Leave empty to use PATH"))
                         .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
                     Button("Choose…") { pickClaude() }
                 }
             }
