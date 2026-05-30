@@ -164,12 +164,12 @@ private struct ClaudeSettingsTab: View {
                 }
             }
 
-            Section("Claude arguments (one per line)") {
-                TextEditor(text: $argsText)
+            Section("Claude arguments") {
+                TextField("", text: $argsText)
+                    .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
-                    .frame(minHeight: 70)
-                    .border(Color.secondary.opacity(0.3))
-                Text("The app appends the /review command for the selected PR (or --resume to continue a session).")
+                    .labelsHidden()
+                Text("Appended to the claude command, exactly as typed. The app then appends the /review command for the selected PR (or --resume to continue a session).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -182,7 +182,7 @@ private struct ClaudeSettingsTab: View {
         .onAppear {
             envText = model.settings.claudeEnv
             claudePath = model.settings.claudePath ?? ""
-            argsText = model.settings.claudeLaunchArgs.joined(separator: "\n")
+            argsText = model.settings.claudeLaunchArgs
             notificationsEnabled = model.settings.notificationsEnabled
         }
         .onChange(of: envText) { _, _ in commit() }
@@ -203,14 +203,10 @@ private struct ClaudeSettingsTab: View {
     }
 
     private func commit() {
-        let argLines = argsText
-            .split(separator: "\n", omittingEmptySubsequences: true)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
         var updated = model.settings
         updated.claudeEnv = envText.trimmingCharacters(in: .whitespacesAndNewlines)
         updated.claudePath = claudePath.isEmpty ? nil : claudePath
-        updated.claudeLaunchArgs = argLines
+        updated.claudeLaunchArgs = argsText.trimmingCharacters(in: .whitespacesAndNewlines)
         updated.notificationsEnabled = notificationsEnabled
         Task { await model.updateSettings(updated) }
     }

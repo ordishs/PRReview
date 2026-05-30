@@ -7,7 +7,7 @@ public struct Settings: Codable, Sendable, Equatable {
     public var ghPath: String?
     public var gitPath: String?
     public var claudePath: String?
-    public var claudeLaunchArgs: [String]
+    public var claudeLaunchArgs: String
     public var claudeEnv: String
     public var autoLoad: Bool
     public var notificationsEnabled: Bool
@@ -22,7 +22,7 @@ public struct Settings: Codable, Sendable, Equatable {
         ghPath: String? = nil,
         gitPath: String? = nil,
         claudePath: String? = nil,
-        claudeLaunchArgs: [String],
+        claudeLaunchArgs: String = "",
         claudeEnv: String = "",
         autoLoad: Bool = false,
         notificationsEnabled: Bool,
@@ -53,7 +53,12 @@ public struct Settings: Codable, Sendable, Equatable {
         ghPath = try c.decodeIfPresent(String.self, forKey: .ghPath)
         gitPath = try c.decodeIfPresent(String.self, forKey: .gitPath)
         claudePath = try c.decodeIfPresent(String.self, forKey: .claudePath)
-        claudeLaunchArgs = try c.decode([String].self, forKey: .claudeLaunchArgs)
+        if let argsString = try? c.decodeIfPresent(String.self, forKey: .claudeLaunchArgs) {
+            claudeLaunchArgs = argsString
+        } else {
+            let argsArray = try c.decodeIfPresent([String].self, forKey: .claudeLaunchArgs) ?? []
+            claudeLaunchArgs = argsArray.joined(separator: " ")
+        }
         if let envString = try? c.decodeIfPresent(String.self, forKey: .claudeEnv) {
             claudeEnv = envString
         } else {
@@ -71,7 +76,6 @@ public struct Settings: Codable, Sendable, Equatable {
         managedRoot: Settings.defaultManagedRoot(),
         discoveryQueries: ["review-requested:@me is:open", "assignee:@me is:open"],
         pollIntervalSeconds: 120,
-        claudeLaunchArgs: [],
         notificationsEnabled: true,
         diffMode: .unified,
         diffIgnoreWhitespace: false,

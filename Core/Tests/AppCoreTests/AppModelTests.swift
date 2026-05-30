@@ -693,7 +693,7 @@ private let prFetchJSON = """
     var seed = Settings.default
     seed.discoveryQueries = ["author:@me"]
     seed.pollIntervalSeconds = 240
-    seed.claudeLaunchArgs = ["--model", "opus"]
+    seed.claudeLaunchArgs = "--model opus"
     seed.notificationsEnabled = false
     try await seedStore.updateSettings(seed)
     let store = try ReviewStore(fileURL: url)
@@ -711,7 +711,7 @@ private let prFetchJSON = """
 
     #expect(model.settings.discoveryQueries == ["author:@me"])
     #expect(model.settings.pollIntervalSeconds == 240)
-    #expect(model.settings.claudeLaunchArgs == ["--model", "opus"])
+    #expect(model.settings.claudeLaunchArgs == "--model opus")
     #expect(model.settings.notificationsEnabled == false)
 }
 

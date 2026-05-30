@@ -6,12 +6,14 @@ public struct ClaudeLaunchSpec: Sendable, Equatable {
     public let cwd: String
     public let arguments: [String]
     public let environment: String
+    public let extraArgs: String
 
-    public init(executable: String, cwd: String, arguments: [String], environment: String = "") {
+    public init(executable: String, cwd: String, arguments: [String], environment: String = "", extraArgs: String = "") {
         self.executable = executable
         self.cwd = cwd
         self.arguments = arguments
         self.environment = environment
+        self.extraArgs = extraArgs
     }
 }
 
@@ -25,7 +27,6 @@ public enum ClaudeLaunchBuilder {
         resume: Bool
     ) -> ClaudeLaunchSpec {
         var args: [String] = []
-        args.append(contentsOf: settings.claudeLaunchArgs)
         args.append(contentsOf: review.claudeFlags ?? [])
         if resume {
             args.append("--resume")
@@ -39,7 +40,8 @@ public enum ClaudeLaunchBuilder {
             executable: resolvedClaudePath,
             cwd: worktreePath,
             arguments: args,
-            environment: settings.claudeEnv
+            environment: settings.claudeEnv,
+            extraArgs: settings.claudeLaunchArgs
         )
     }
 }

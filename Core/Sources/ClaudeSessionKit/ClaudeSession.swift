@@ -69,7 +69,9 @@ public final class ClaudeSession {
         let argsSuffix = escapedArgs.isEmpty ? "" : " " + escapedArgs
         let env = spec.environment.trimmingCharacters(in: .whitespacesAndNewlines)
         let envPrefix = env.isEmpty ? "" : "env " + env + " "
-        return "cd \(escapedCwd) && exec \(envPrefix)\(escapedExec)\(argsSuffix)"
+        let extra = spec.extraArgs.trimmingCharacters(in: .whitespacesAndNewlines)
+        let extraPrefix = extra.isEmpty ? "" : " " + extra
+        return "cd \(escapedCwd) && exec \(envPrefix)\(escapedExec)\(extraPrefix)\(argsSuffix)"
     }
 
     private func shellEscape(_ s: String) -> String {
