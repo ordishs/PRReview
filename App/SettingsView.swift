@@ -146,7 +146,7 @@ private struct ClaudeSettingsTab: View {
     var body: some View {
         Form {
             Section("Extra environment variables for Claude Code") {
-                TextField("", text: $envText, prompt: Text("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 FOO=bar"))
+                TextField("", text: $envText)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
                     .labelsHidden()
@@ -157,7 +157,7 @@ private struct ClaudeSettingsTab: View {
 
             Section("Claude Code binary (uses PATH if not set)") {
                 HStack {
-                    TextField("", text: $claudePath, prompt: Text("Leave empty to use PATH"))
+                    TextField("", text: $claudePath)
                         .textFieldStyle(.roundedBorder)
                         .labelsHidden()
                     Button("Choose…") { pickClaude() }
