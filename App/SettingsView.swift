@@ -108,8 +108,9 @@ private struct ToolsSettingsTab: View {
                 .frame(width: 60, alignment: .trailing)
                 .foregroundStyle(.secondary)
                 .font(.system(.body, design: .monospaced))
-            TextField(placeholder, text: binding)
+            TextField("", text: binding, prompt: Text(placeholder))
                 .textFieldStyle(.roundedBorder)
+                .labelsHidden()
             Button("Choose…") {
                 pickFile(into: binding)
             }
