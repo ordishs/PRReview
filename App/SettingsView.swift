@@ -52,22 +52,6 @@ private struct DiscoverySettingsTab: View {
                     Text("\(pollIntervalSeconds) seconds")
                 }
             }
-
-            Section("Sidebar grouping") {
-                Picker("Group PRs by", selection: Binding(
-                    get: { model.settings.sidebarGrouping },
-                    set: { newValue in
-                        var updated = model.settings
-                        updated.sidebarGrouping = newValue
-                        Task { await model.updateSettings(updated) }
-                    }
-                )) {
-                    ForEach(SidebarGrouping.allCases, id: \.self) { grouping in
-                        Text(grouping.displayName).tag(grouping)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
         }
         .formStyle(.grouped)
         .onAppear {
