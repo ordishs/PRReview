@@ -85,8 +85,8 @@ private struct ToolsSettingsTab: View {
     var body: some View {
         Form {
             Section("Tool paths") {
-                pathRow(label: "gh", binding: $ghPath, placeholder: "/opt/homebrew/bin/gh")
-                pathRow(label: "git", binding: $gitPath, placeholder: "/opt/homebrew/bin/git")
+                pathRow(label: "gh", binding: $ghPath)
+                pathRow(label: "git", binding: $gitPath)
                 Text("Leave empty to auto-detect from your shell PATH — matches what `which gh` returns in your terminal.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -102,13 +102,13 @@ private struct ToolsSettingsTab: View {
     }
 
     @ViewBuilder
-    private func pathRow(label: String, binding: Binding<String>, placeholder: String) -> some View {
+    private func pathRow(label: String, binding: Binding<String>) -> some View {
         HStack {
             Text(label)
                 .frame(width: 60, alignment: .trailing)
                 .foregroundStyle(.secondary)
                 .font(.system(.body, design: .monospaced))
-            TextField("", text: binding, prompt: Text(placeholder))
+            TextField("", text: binding)
                 .textFieldStyle(.roundedBorder)
                 .labelsHidden()
             Button("Choose…") {
