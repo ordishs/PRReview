@@ -16,8 +16,7 @@ struct SettingsView: View {
             ClaudeSettingsTab(model: model)
                 .tabItem { Label("Claude", systemImage: "terminal") }
         }
-        .frame(width: 540, height: 360)
-        .padding(20)
+        .frame(width: 560, height: 520)
     }
 }
 
@@ -40,7 +39,7 @@ private struct DiscoverySettingsTab: View {
             Section("Search queries (one per line)") {
                 TextEditor(text: $queriesText)
                     .font(.system(.body, design: .monospaced))
-                    .frame(minHeight: 120)
+                    .frame(minHeight: 90)
                     .border(Color.secondary.opacity(0.3))
                 Text("Each line is a separate `gh search prs` query. Include `is:open` to filter out closed PRs.")
                     .font(.caption)
@@ -168,7 +167,7 @@ private struct ClaudeSettingsTab: View {
             Section("Claude arguments (one per line)") {
                 TextEditor(text: $argsText)
                     .font(.system(.body, design: .monospaced))
-                    .frame(minHeight: 80)
+                    .frame(minHeight: 70)
                     .border(Color.secondary.opacity(0.3))
                 Text("The app appends the /review command for the selected PR (or --resume to continue a session).")
                     .font(.caption)
