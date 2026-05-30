@@ -11,14 +11,6 @@ public enum ClaudeTranscriptPath {
         latestSessionID(in: directoryURL(forWorktreePath: path))
     }
 
-    public static func transcriptURL(sessionID: String, worktreePath: String) -> URL {
-        directoryURL(forWorktreePath: worktreePath).appendingPathComponent("\(sessionID).jsonl")
-    }
-
-    public static func transcriptExists(sessionID: String, worktreePath: String) -> Bool {
-        FileManager.default.fileExists(atPath: transcriptURL(sessionID: sessionID, worktreePath: worktreePath).path)
-    }
-
     public static func latestSessionID(in dir: URL) -> String? {
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(

@@ -339,7 +339,7 @@ public final class AppModel {
         let resume: Bool
         if let existing = updated.claudeSessionID {
             sessionID = existing
-            resume = ClaudeTranscriptPath.transcriptExists(sessionID: existing, worktreePath: ready.worktreePath)
+            resume = true
         } else if let latest = ClaudeTranscriptPath.latestSessionID(forWorktreePath: ready.worktreePath) {
             sessionID = latest
             resume = true
