@@ -54,7 +54,12 @@ public struct Settings: Codable, Sendable, Equatable {
         gitPath = try c.decodeIfPresent(String.self, forKey: .gitPath)
         claudePath = try c.decodeIfPresent(String.self, forKey: .claudePath)
         claudeLaunchArgs = try c.decode([String].self, forKey: .claudeLaunchArgs)
-        claudeEnv = try c.decodeIfPresent(String.self, forKey: .claudeEnv) ?? ""
+        if let envString = try? c.decodeIfPresent(String.self, forKey: .claudeEnv) {
+            claudeEnv = envString
+        } else {
+            let envArray = try c.decodeIfPresent([String].self, forKey: .claudeEnv) ?? []
+            claudeEnv = envArray.joined(separator: " ")
+        }
         autoLoad = try c.decodeIfPresent(Bool.self, forKey: .autoLoad) ?? false
         notificationsEnabled = try c.decode(Bool.self, forKey: .notificationsEnabled)
         diffMode = try c.decode(DiffMode.self, forKey: .diffMode)
