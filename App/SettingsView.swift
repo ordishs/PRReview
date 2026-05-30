@@ -111,6 +111,7 @@ private struct ToolsSettingsTab: View {
             TextField("", text: binding)
                 .textFieldStyle(.roundedBorder)
                 .labelsHidden()
+                .multilineTextAlignment(.leading)
             Button("Choose…") {
                 pickFile(into: binding)
             }
@@ -151,6 +152,7 @@ private struct ClaudeSettingsTab: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
                     .labelsHidden()
+                    .multilineTextAlignment(.leading)
                 Text("Prepended before the claude command, exactly as typed. Leave empty for none.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -161,6 +163,7 @@ private struct ClaudeSettingsTab: View {
                     TextField("", text: $claudePath)
                         .textFieldStyle(.roundedBorder)
                         .labelsHidden()
+                        .multilineTextAlignment(.leading)
                     Button("Choose…") { pickClaude() }
                 }
             }
@@ -170,6 +173,7 @@ private struct ClaudeSettingsTab: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
                     .labelsHidden()
+                    .multilineTextAlignment(.leading)
                 Text("Appended to the claude command, exactly as typed. The app then appends the /review command for the selected PR (or --resume to continue a session).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
