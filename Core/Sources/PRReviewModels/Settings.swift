@@ -8,6 +8,8 @@ public struct Settings: Codable, Sendable, Equatable {
     public var gitPath: String?
     public var claudePath: String?
     public var claudeLaunchArgs: [String]
+    public var claudeEnv: String
+    public var autoLoad: Bool
     public var notificationsEnabled: Bool
     public var diffMode: DiffMode
     public var diffIgnoreWhitespace: Bool
@@ -21,6 +23,8 @@ public struct Settings: Codable, Sendable, Equatable {
         gitPath: String? = nil,
         claudePath: String? = nil,
         claudeLaunchArgs: [String],
+        claudeEnv: String = "",
+        autoLoad: Bool = false,
         notificationsEnabled: Bool,
         diffMode: DiffMode,
         diffIgnoreWhitespace: Bool,
@@ -33,6 +37,8 @@ public struct Settings: Codable, Sendable, Equatable {
         self.gitPath = gitPath
         self.claudePath = claudePath
         self.claudeLaunchArgs = claudeLaunchArgs
+        self.claudeEnv = claudeEnv
+        self.autoLoad = autoLoad
         self.notificationsEnabled = notificationsEnabled
         self.diffMode = diffMode
         self.diffIgnoreWhitespace = diffIgnoreWhitespace
@@ -48,6 +54,8 @@ public struct Settings: Codable, Sendable, Equatable {
         gitPath = try c.decodeIfPresent(String.self, forKey: .gitPath)
         claudePath = try c.decodeIfPresent(String.self, forKey: .claudePath)
         claudeLaunchArgs = try c.decode([String].self, forKey: .claudeLaunchArgs)
+        claudeEnv = try c.decodeIfPresent(String.self, forKey: .claudeEnv) ?? ""
+        autoLoad = try c.decodeIfPresent(Bool.self, forKey: .autoLoad) ?? false
         notificationsEnabled = try c.decode(Bool.self, forKey: .notificationsEnabled)
         diffMode = try c.decode(DiffMode.self, forKey: .diffMode)
         diffIgnoreWhitespace = try c.decode(Bool.self, forKey: .diffIgnoreWhitespace)

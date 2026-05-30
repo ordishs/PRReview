@@ -5,11 +5,13 @@ public struct ClaudeLaunchSpec: Sendable, Equatable {
     public let executable: String
     public let cwd: String
     public let arguments: [String]
+    public let environment: String
 
-    public init(executable: String, cwd: String, arguments: [String]) {
+    public init(executable: String, cwd: String, arguments: [String], environment: String = "") {
         self.executable = executable
         self.cwd = cwd
         self.arguments = arguments
+        self.environment = environment
     }
 }
 
@@ -19,32 +21,25 @@ public enum ClaudeLaunchBuilder {
         review: Review,
         worktreePath: String,
         resolvedClaudePath: String,
-        resumeSessionID: String? = nil
+        sessionID: String,
+        resume: Bool
     ) -> ClaudeLaunchSpec {
-        let sessionName: String
-        if let issue = review.closingIssueNumber {
-            sessionName = "\(review.number) / #\(issue) - \(review.author)"
-        } else {
-            sessionName = "\(review.number) - \(review.author)"
-        }
         var args: [String] = []
         args.append(contentsOf: settings.claudeLaunchArgs)
-        args.append("--name")
-        args.append(sessionName)
-        args.append("--effort")
-        args.append("max")
-        args.append("--dangerously-skip-permissions")
         args.append(contentsOf: review.claudeFlags ?? [])
-        if let id = resumeSessionID {
+        if resume {
             args.append("--resume")
-            args.append(id)
+            args.append(sessionID)
         } else {
+            args.append("--session-id")
+            args.append(sessionID)
             args.append("/review \(review.url.absoluteString)")
         }
         return ClaudeLaunchSpec(
             executable: resolvedClaudePath,
             cwd: worktreePath,
-            arguments: args
+            arguments: args,
+            environment: settings.claudeEnv
         )
     }
 }

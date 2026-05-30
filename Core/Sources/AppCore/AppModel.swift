@@ -29,6 +29,8 @@ public final class AppModel {
     public private(set) var settings: Settings = .default
     public var diffMode: DiffMode { settings.diffMode }
 
+    public var webPreloadHandler: ((Review) -> Void)?
+
     private var transcriptWatchers: [String: TranscriptWatcher] = [:]
     private var lastEventAt: [String: Date] = [:]
     private var lastVerdictSnippet: [String: String] = [:]
@@ -167,6 +169,7 @@ public final class AppModel {
             } else {
                 guard let fresh = try? await client.fetchReview(for: hit.ref, origin: .discovered) else { continue }
                 try? await store.upsert(fresh)
+                autoLoadIfEnabled(fresh)
             }
         }
         reviews = await store.allReviews()
@@ -183,6 +186,7 @@ public final class AppModel {
             selection = review.id
             errorMessage = nil
             prefetch(for: review)
+            autoLoadIfEnabled(review)
         } catch {
             errorMessage = String(describing: error)
         }
@@ -328,19 +332,34 @@ public final class AppModel {
             return
         }
         guard reviews.contains(where: { $0.id == review.id }) else { return }
-        if review.worktreePath != ready.worktreePath {
-            var updated = review
-            updated.worktreePath = ready.worktreePath
+        var updated = review
+        updated.worktreePath = ready.worktreePath
+
+        let sessionID: String
+        let resume: Bool
+        if let existing = updated.claudeSessionID {
+            sessionID = existing
+            resume = ClaudeTranscriptPath.transcriptExists(sessionID: existing, worktreePath: ready.worktreePath)
+        } else if let latest = ClaudeTranscriptPath.latestSessionID(forWorktreePath: ready.worktreePath) {
+            sessionID = latest
+            resume = true
+        } else {
+            sessionID = UUID().uuidString.lowercased()
+            resume = false
+        }
+        updated.claudeSessionID = sessionID
+
+        if updated != review {
             try? await store.upsert(updated)
             reviews = await store.allReviews()
         }
-        let resumeSessionID = ClaudeTranscriptPath.latestSessionID(forWorktreePath: ready.worktreePath)
         let spec = ClaudeLaunchBuilder.build(
             settings: settings,
-            review: review,
+            review: updated,
             worktreePath: ready.worktreePath,
             resolvedClaudePath: executable,
-            resumeSessionID: resumeSessionID
+            sessionID: sessionID,
+            resume: resume
         )
         let session = ClaudeSession(spec: spec)
         claudeSessions[review.id] = session
@@ -440,6 +459,12 @@ public final class AppModel {
         guard !review.disabled else { return }
         Task { await ensureClaudeSession(for: review) }
         Task { await loadDiff(for: review) }
+    }
+
+    private func autoLoadIfEnabled(_ review: Review) {
+        guard settings.autoLoad, !review.disabled else { return }
+        Task { await ensureClaudeSession(for: review) }
+        webPreloadHandler?(review)
     }
 
     public func prewarmDiffs() {

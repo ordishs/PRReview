@@ -15,6 +15,7 @@ public struct Review: Codable, Sendable, Identifiable, Equatable {
     public var worktreePath: String?
     public var notes: String?
     public var claudeFlags: [String]?
+    public var claudeSessionID: String?
     public var addedAt: Date
     public var lastOpenedAt: Date?
     public var closingIssueNumber: Int?
@@ -35,6 +36,7 @@ public struct Review: Codable, Sendable, Identifiable, Equatable {
         worktreePath: String? = nil,
         notes: String? = nil,
         claudeFlags: [String]? = nil,
+        claudeSessionID: String? = nil,
         addedAt: Date,
         lastOpenedAt: Date? = nil,
         closingIssueNumber: Int? = nil,
@@ -55,6 +57,7 @@ public struct Review: Codable, Sendable, Identifiable, Equatable {
         self.worktreePath = worktreePath
         self.notes = notes
         self.claudeFlags = claudeFlags
+        self.claudeSessionID = claudeSessionID
         self.addedAt = addedAt
         self.lastOpenedAt = lastOpenedAt
         self.closingIssueNumber = closingIssueNumber
@@ -78,6 +81,7 @@ public struct Review: Codable, Sendable, Identifiable, Equatable {
         self.worktreePath = try container.decodeIfPresent(String.self, forKey: .worktreePath)
         self.notes = try container.decodeIfPresent(String.self, forKey: .notes)
         self.claudeFlags = try container.decodeIfPresent([String].self, forKey: .claudeFlags)
+        self.claudeSessionID = try container.decodeIfPresent(String.self, forKey: .claudeSessionID)
         self.addedAt = try container.decode(Date.self, forKey: .addedAt)
         self.lastOpenedAt = try container.decodeIfPresent(Date.self, forKey: .lastOpenedAt)
         self.closingIssueNumber = try container.decodeIfPresent(Int.self, forKey: .closingIssueNumber)

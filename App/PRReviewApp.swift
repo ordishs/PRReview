@@ -30,6 +30,9 @@ struct PRReviewApp: App {
                 guard model == nil, startupError == nil else { return }
                 do {
                     let created = try AppModelFactory.makeDefault()
+                    created.webPreloadHandler = { review in
+                        _ = webViewCache.ensure(for: review)
+                    }
                     await created.load()
                     created.startDiscoveryPolling()
                     created.prewarmDiffs()

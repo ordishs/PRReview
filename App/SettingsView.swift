@@ -26,9 +26,17 @@ private struct DiscoverySettingsTab: View {
 
     @State private var queriesText: String = ""
     @State private var pollIntervalSeconds: Int = 120
+    @State private var autoLoad: Bool = false
 
     var body: some View {
         Form {
+            Section("Auto load") {
+                Toggle("Start a Claude session and load GitHub when a PR is first added", isOn: $autoLoad)
+                Text("Applies the first time a PR appears, whether added manually or found by discovery.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Search queries (one per line)") {
                 TextEditor(text: $queriesText)
                     .font(.system(.body, design: .monospaced))
@@ -65,9 +73,11 @@ private struct DiscoverySettingsTab: View {
         .onAppear {
             queriesText = model.settings.discoveryQueries.joined(separator: "\n")
             pollIntervalSeconds = model.settings.pollIntervalSeconds
+            autoLoad = model.settings.autoLoad
         }
         .onChange(of: queriesText) { _, newValue in commit() }
         .onChange(of: pollIntervalSeconds) { _, _ in commit() }
+        .onChange(of: autoLoad) { _, _ in commit() }
     }
 
     private func commit() {
@@ -78,6 +88,7 @@ private struct DiscoverySettingsTab: View {
         var updated = model.settings
         updated.discoveryQueries = lines
         updated.pollIntervalSeconds = pollIntervalSeconds
+        updated.autoLoad = autoLoad
         Task { await model.updateSettings(updated) }
     }
 }
@@ -87,15 +98,13 @@ private struct ToolsSettingsTab: View {
 
     @State private var ghPath: String = ""
     @State private var gitPath: String = ""
-    @State private var claudePath: String = ""
 
     var body: some View {
         Form {
             Section("Tool paths") {
                 pathRow(label: "gh", binding: $ghPath, placeholder: "/opt/homebrew/bin/gh")
                 pathRow(label: "git", binding: $gitPath, placeholder: "/opt/homebrew/bin/git")
-                pathRow(label: "claude", binding: $claudePath, placeholder: "/opt/homebrew/bin/claude or ~/.claude/local/claude")
-                Text("Leave empty to auto-detect from your shell PATH — matches what `which claude` returns in your terminal.")
+                Text("Leave empty to auto-detect from your shell PATH — matches what `which gh` returns in your terminal.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -104,11 +113,9 @@ private struct ToolsSettingsTab: View {
         .onAppear {
             ghPath = model.settings.ghPath ?? ""
             gitPath = model.settings.gitPath ?? ""
-            claudePath = model.settings.claudePath ?? ""
         }
         .onChange(of: ghPath) { _, _ in commit() }
         .onChange(of: gitPath) { _, _ in commit() }
-        .onChange(of: claudePath) { _, _ in commit() }
     }
 
     @ViewBuilder
@@ -141,7 +148,6 @@ private struct ToolsSettingsTab: View {
         var updated = model.settings
         updated.ghPath = ghPath.isEmpty ? nil : ghPath
         updated.gitPath = gitPath.isEmpty ? nil : gitPath
-        updated.claudePath = claudePath.isEmpty ? nil : claudePath
         Task { await model.updateSettings(updated) }
     }
 }
@@ -149,17 +155,36 @@ private struct ToolsSettingsTab: View {
 private struct ClaudeSettingsTab: View {
     let model: AppModel
 
+    @State private var envText: String = ""
+    @State private var claudePath: String = ""
     @State private var argsText: String = ""
     @State private var notificationsEnabled: Bool = true
 
     var body: some View {
         Form {
-            Section("Launch arguments (one per line)") {
+            Section("Extra environment variables for Claude Code") {
+                TextField("", text: $envText, prompt: Text("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 FOO=bar"))
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+                Text("Prepended before the claude command, exactly as typed. Leave empty for none.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Claude Code binary (uses PATH if not set)") {
+                HStack {
+                    TextField("", text: $claudePath, prompt: Text("Leave empty to use PATH"))
+                        .textFieldStyle(.roundedBorder)
+                    Button("Choose…") { pickClaude() }
+                }
+            }
+
+            Section("Claude arguments (one per line)") {
                 TextEditor(text: $argsText)
                     .font(.system(.body, design: .monospaced))
-                    .frame(minHeight: 100)
+                    .frame(minHeight: 80)
                     .border(Color.secondary.opacity(0.3))
-                Text("Extra arguments prepended to the claude invocation. The app always appends --name, --effort max, --dangerously-skip-permissions, and the /review command.")
+                Text("The app appends the /review command for the selected PR (or --resume to continue a session).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -170,20 +195,37 @@ private struct ClaudeSettingsTab: View {
         }
         .formStyle(.grouped)
         .onAppear {
+            envText = model.settings.claudeEnv
+            claudePath = model.settings.claudePath ?? ""
             argsText = model.settings.claudeLaunchArgs.joined(separator: "\n")
             notificationsEnabled = model.settings.notificationsEnabled
         }
+        .onChange(of: envText) { _, _ in commit() }
+        .onChange(of: claudePath) { _, _ in commit() }
         .onChange(of: argsText) { _, _ in commit() }
         .onChange(of: notificationsEnabled) { _, _ in commit() }
     }
 
+    private func pickClaude() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: "/usr/local/bin")
+        if panel.runModal() == .OK, let url = panel.url {
+            claudePath = url.path
+        }
+    }
+
     private func commit() {
-        let lines = argsText
+        let argLines = argsText
             .split(separator: "\n", omittingEmptySubsequences: true)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         var updated = model.settings
-        updated.claudeLaunchArgs = lines
+        updated.claudeEnv = envText.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.claudePath = claudePath.isEmpty ? nil : claudePath
+        updated.claudeLaunchArgs = argLines
         updated.notificationsEnabled = notificationsEnabled
         Task { await model.updateSettings(updated) }
     }

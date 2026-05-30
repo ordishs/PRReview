@@ -67,7 +67,9 @@ public final class ClaudeSession {
         let escapedExec = shellEscape(spec.executable)
         let escapedArgs = spec.arguments.map(shellEscape).joined(separator: " ")
         let argsSuffix = escapedArgs.isEmpty ? "" : " " + escapedArgs
-        return "cd \(escapedCwd) && exec \(escapedExec)\(argsSuffix)"
+        let env = spec.environment.trimmingCharacters(in: .whitespacesAndNewlines)
+        let envPrefix = env.isEmpty ? "" : "env " + env + " "
+        return "cd \(escapedCwd) && exec \(envPrefix)\(escapedExec)\(argsSuffix)"
     }
 
     private func shellEscape(_ s: String) -> String {
